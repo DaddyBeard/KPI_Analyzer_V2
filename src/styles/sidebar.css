@@ -1,0 +1,296 @@
+/* Sidebar Styles (Floating & Collapsible) */
+:root {
+    --sidebar-width: 280px;
+    --sidebar-collapsed-width: 80px;
+    --sidebar-bg: #0b1121;
+    --sidebar-border: rgba(255, 255, 255, 0.08);
+    --primary-color: #4f46e5;
+    --text-primary: #ffffff;
+    --text-secondary: #94a3b8;
+}
+
+/* Container */
+.sidebar-container {
+    height: calc(100vh - 2rem);
+    /* Floating height */
+    margin: 1rem;
+    /* Floating margin */
+    background-color: var(--sidebar-bg);
+    border-radius: 1.5rem;
+    /* Rounded corners */
+    display: flex;
+    flex-direction: column;
+    color: var(--text-primary);
+    border: 1px solid var(--sidebar-border);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.02), transparent);
+    overflow: hidden;
+    position: relative;
+    z-index: 50;
+    flex-shrink: 0;
+    /* Prevent shrinking */
+
+    /* Default Width */
+    width: var(--sidebar-width);
+}
+
+.sidebar-container.collapsed {
+    width: var(--sidebar-collapsed-width);
+}
+
+/* Header */
+.sidebar-header {
+    height: 5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity 0.2s;
+}
+
+.brand-icon {
+    width: 2rem;
+    height: 2rem;
+    background-color: var(--primary-color);
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
+}
+
+.brand-text {
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+/* Search */
+.sidebar-search {
+    padding: 0 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-input {
+    width: 100%;
+    background-color: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    border-radius: 0.75rem;
+    padding: 0.625rem 0.75rem 0.625rem 2.5rem;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.search-input:focus {
+    border-color: var(--primary-color);
+    background-color: rgba(30, 41, 59, 0.8);
+    color: white;
+}
+
+.search-icon {
+    position: absolute;
+    left: 0.75rem;
+    color: var(--text-secondary);
+    width: 1rem;
+    height: 1rem;
+    pointer-events: none;
+}
+
+/* Nav */
+.sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+    width: 0;
+}
+
+.nav-section-title {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+.nav-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+}
+
+.nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: white;
+}
+
+.nav-item.active {
+    background-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.nav-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+}
+
+.nav-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Collapsed State Overrides */
+.sidebar-container.collapsed .brand-text,
+.sidebar-container.collapsed .nav-label,
+.sidebar-container.collapsed .search-input,
+.sidebar-container.collapsed .nav-section-title {
+    display: none;
+}
+
+.sidebar-container.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 0;
+}
+
+.sidebar-container.collapsed .brand {
+    display: none;
+}
+
+.sidebar-container.collapsed .nav-item {
+    justify-content: center;
+    padding: 0.75rem;
+}
+
+.sidebar-container.collapsed .sidebar-nav {
+    padding: 0 0.5rem;
+    align-items: center;
+}
+
+/* Footer */
+.sidebar-footer {
+    padding: 1rem;
+    border-top: 1px solid var(--sidebar-border);
+    margin-top: auto;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+    transition: background 0.2s;
+    width: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: white;
+}
+
+.user-profile:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #a855f7, #6366f1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.user-info {
+    text-align: left;
+    overflow: hidden;
+}
+
+.user-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.user-role {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.sidebar-container.collapsed .user-info,
+.sidebar-container.collapsed .more-icon {
+    display: none;
+}
+
+.sidebar-container.collapsed .user-profile {
+    justify-content: center;
+}
+
+/* --- LAYOUT OVERRIDES (Force Full Width) --- */
+.force-full-width {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+.dashboard-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 1rem;
+}
+
+@media (min-width: 768px) {
+    .dashboard-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1280px) {
+    .dashboard-stats-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+}
