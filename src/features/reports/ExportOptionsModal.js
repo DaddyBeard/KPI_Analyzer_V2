@@ -9,14 +9,14 @@ import { ExcelExportService } from './ExcelExportService.js';
 
 export class ExportOptionsModal {
 
-    static show(data, kpiConfig) {
-        // Crear overlay
-        const overlay = document.createElement('div');
-        overlay.id = 'excel-export-modal-overlay';
-        overlay.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center';
+  static show(data, kpiConfig) {
+    // Crear overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'excel-export-modal-overlay';
+    overlay.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center';
 
-        // Crear modal
-        overlay.innerHTML = `
+    // Crear modal
+    overlay.innerHTML = `
       <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 animate-fade-in">
         <!-- Header -->
         <div class="bg-gradient-to-r from-indigo-600 to-blue-600 p-6 rounded-t-2xl">
@@ -109,6 +109,50 @@ export class ExportOptionsModal {
             </div>
           </button>
 
+          <!-- Formato 4: Por Team Manager -->
+          <button data-format="team-manager" class="export-format-option w-full text-left p-5 rounded-xl border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all group">
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 bg-slate-100 group-hover:bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors">
+                <i data-lucide="users" class="w-6 h-6 text-slate-600 group-hover:text-emerald-600"></i>
+              </div>
+              <div class="flex-1">
+                <h3 class="font-bold text-lg text-slate-900 group-hover:text-emerald-700 mb-1">
+                  👥 Por Team Manager
+                </h3>
+                <p class="text-slate-600 text-sm mb-2">
+                  Una hoja separada por cada TM con sus agentes y métricas consolidadas
+                </p>
+                <div class="flex flex-wrap gap-2">
+                  <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">Hoja por TM</span>
+                  <span class="text-xs px-2 py-1 bg-teal-100 text-teal-700 rounded-full">Resumen global</span>
+                  <span class="text-xs px-2 py-1 bg-cyan-100 text-cyan-700 rounded-full">Puntuación equipo</span>
+                </div>
+              </div>
+            </div>
+          </button>
+
+          <!-- Formato 5: Comparativo Histórico -->
+          <button data-format="comparative" class="export-format-option w-full text-left p-5 rounded-xl border-2 border-slate-200 hover:border-purple-400 hover:bg-purple-50 transition-all group">
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 bg-slate-100 group-hover:bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors">
+                <i data-lucide="trending-up" class="w-6 h-6 text-slate-600 group-hover:text-purple-600"></i>
+              </div>
+              <div class="flex-1">
+                <h3 class="font-bold text-lg text-slate-900 group-hover:text-purple-700 mb-1">
+                  📈 Comparativo (Histórico)
+                </h3>
+                <p class="text-slate-600 text-sm mb-2">
+                  Evolución mes a mes, tendencias y ranking de mejoras/retrocesos
+                </p>
+                <div class="flex flex-wrap gap-2">
+                  <span class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">Tendencias</span>
+                  <span class="text-xs px-2 py-1 bg-violet-100 text-violet-700 rounded-full">Evolución KPI</span>
+                  <span class="text-xs px-2 py-1 bg-fuchsia-100 text-fuchsia-700 rounded-full">Top mejoras</span>
+                </div>
+              </div>
+            </div>
+          </button>
+
         </div>
 
         <!-- Footer -->
@@ -124,88 +168,96 @@ export class ExportOptionsModal {
       </div>
     `;
 
-        document.body.appendChild(overlay);
+    document.body.appendChild(overlay);
 
-        // Inicializar iconos de Lucide
-        if (window.lucide) {
-            window.lucide.createIcons();
+    // Inicializar iconos de Lucide
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+
+    // Event listeners
+    this.attachEventListeners(overlay, data, kpiConfig);
+  }
+
+  static attachEventListeners(overlay, data, kpiConfig) {
+    // Cerrar modal
+    const closeButtons = overlay.querySelectorAll('#closeExportModal, #cancelExportModal');
+    closeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.close();
+      });
+    });
+
+    // Click fuera del modal
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        this.close();
+      }
+    });
+
+    // Selección de formato y exportación
+    const formatButtons = overlay.querySelectorAll('.export-format-option');
+    formatButtons.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const format = btn.dataset.format;
+
+        // Mostrar loading
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.innerHTML = '<div class="flex items-center justify-center gap-2"><div class="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div><span>Generando Excel...</span></div>';
+
+        try {
+          let result;
+
+          switch (format) {
+            case 'basic':
+              result = await ExcelExportService.exportBasic(data);
+              break;
+            case 'professional':
+              result = await ExcelExportService.exportProfessional(data, kpiConfig);
+              break;
+            case 'dashboard':
+              result = await ExcelExportService.exportDashboard(data, kpiConfig);
+              break;
+            case 'team-manager':
+              result = await ExcelExportService.exportTeamManager(data, kpiConfig);
+              break;
+            case 'comparative':
+              result = await ExcelExportService.exportComparative(data, kpiConfig);
+              break;
+          }
+
+          if (result.success) {
+            // Mostrar confirmación
+            this.showSuccess(format);
+            setTimeout(() => this.close(), 1500);
+          } else {
+            alert(`Error al exportar: ${result.error}`);
+            btn.disabled = false;
+            btn.style.opacity = '1';
+          }
+        } catch (error) {
+          console.error('Error en exportación:', error);
+          alert('Error al generar el archivo Excel');
+          btn.disabled = false;
+          btn.style.opacity = '1';
         }
+      });
+    });
+  }
 
-        // Event listeners
-        this.attachEventListeners(overlay, data, kpiConfig);
-    }
+  static showSuccess(format) {
+    const formatNames = {
+      basic: 'Datos Básicos',
+      professional: 'Formato Profesional',
+      dashboard: 'Dashboard Completo',
+      'team-manager': 'Por Team Manager',
+      comparative: 'Comparativo Histórico'
+    };
 
-    static attachEventListeners(overlay, data, kpiConfig) {
-        // Cerrar modal
-        const closeButtons = overlay.querySelectorAll('#closeExportModal, #cancelExportModal');
-        closeButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.close();
-            });
-        });
-
-        // Click fuera del modal
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                this.close();
-            }
-        });
-
-        // Selección de formato y exportación
-        const formatButtons = overlay.querySelectorAll('.export-format-option');
-        formatButtons.forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const format = btn.dataset.format;
-
-                // Mostrar loading
-                btn.disabled = true;
-                btn.style.opacity = '0.6';
-                btn.innerHTML = '<div class="flex items-center justify-center gap-2"><div class="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div><span>Generando Excel...</span></div>';
-
-                try {
-                    let result;
-
-                    switch (format) {
-                        case 'basic':
-                            result = await ExcelExportService.exportBasic(data);
-                            break;
-                        case 'professional':
-                            result = await ExcelExportService.exportProfessional(data, kpiConfig);
-                            break;
-                        case 'dashboard':
-                            result = await ExcelExportService.exportDashboard(data, kpiConfig);
-                            break;
-                    }
-
-                    if (result.success) {
-                        // Mostrar confirmación
-                        this.showSuccess(format);
-                        setTimeout(() => this.close(), 1500);
-                    } else {
-                        alert(`Error al exportar: ${result.error}`);
-                        btn.disabled = false;
-                        btn.style.opacity = '1';
-                    }
-                } catch (error) {
-                    console.error('Error en exportación:', error);
-                    alert('Error al generar el archivo Excel');
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                }
-            });
-        });
-    }
-
-    static showSuccess(format) {
-        const formatNames = {
-            basic: 'Datos Básicos',
-            professional: 'Formato Profesional',
-            dashboard: 'Dashboard Completo'
-        };
-
-        const overlay = document.getElementById('excel-export-modal-overlay');
-        if (overlay) {
-            overlay.innerHTML = `
+    const overlay = document.getElementById('excel-export-modal-overlay');
+    if (overlay) {
+      overlay.innerHTML = `
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-8 text-center animate-fade-in">
           <div class="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
             <i data-lucide="check-circle" class="w-10 h-10 text-green-600"></i>
@@ -220,16 +272,16 @@ export class ExportOptionsModal {
         </div>
       `;
 
-            if (window.lucide) {
-                window.lucide.createIcons();
-            }
-        }
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
     }
+  }
 
-    static close() {
-        const overlay = document.getElementById('excel-export-modal-overlay');
-        if (overlay) {
-            overlay.remove();
-        }
+  static close() {
+    const overlay = document.getElementById('excel-export-modal-overlay');
+    if (overlay) {
+      overlay.remove();
     }
+  }
 }

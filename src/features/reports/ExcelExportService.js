@@ -9,6 +9,8 @@ import ExcelJS from 'exceljs';
 import { BasicFormat } from './excel-formats/BasicFormat.js';
 import { ProfessionalFormat } from './excel-formats/ProfessionalFormat.js';
 import { DashboardFormat } from './excel-formats/DashboardFormat.js';
+import { TeamManagerFormat } from './excel-formats/TeamManagerFormat.js';
+import { ComparativeFormat } from './excel-formats/ComparativeFormat.js';
 
 export class ExcelExportService {
 
@@ -91,6 +93,64 @@ export class ExcelExportService {
             return { success: true, format: 'dashboard' };
         } catch (error) {
             console.error('Error exportando Excel dashboard:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Formato 4: Exportación por Team Manager
+     * @param {Array} data - Datos de agentes
+     * @param {Array} kpiConfig - Configuración de KPIs
+     * @param {string} filename - Nombre del archivo (sin extensión)
+     */
+    static async exportTeamManager(data, kpiConfig, filename = 'KPI_Por_TM') {
+        try {
+            const workbook = new ExcelJS.Workbook();
+
+            // Metadata
+            workbook.creator = 'KPI Analyzer V2';
+            workbook.created = new Date();
+            workbook.company = 'KPI Analyzer';
+            workbook.description = 'Reporte de KPIs agrupado por Team Manager';
+
+            // Aplicar formato por TM
+            TeamManagerFormat.apply(workbook, data, kpiConfig);
+
+            // Guardar archivo
+            await this.saveWorkbook(workbook, `${filename}_${this.getDateString()}.xlsx`);
+
+            return { success: true, format: 'team-manager' };
+        } catch (error) {
+            console.error('Error exportando Excel por TM:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Formato 5: Exportación Comparativa (Histórico)
+     * @param {Array} data - Datos de agentes con historial
+     * @param {Array} kpiConfig - Configuración de KPIs
+     * @param {string} filename - Nombre del archivo (sin extensión)
+     */
+    static async exportComparative(data, kpiConfig, filename = 'KPI_Comparativo') {
+        try {
+            const workbook = new ExcelJS.Workbook();
+
+            // Metadata
+            workbook.creator = 'KPI Analyzer V2';
+            workbook.created = new Date();
+            workbook.company = 'KPI Analyzer';
+            workbook.description = 'Análisis comparativo y evolución de KPIs';
+
+            // Aplicar formato comparativo
+            ComparativeFormat.apply(workbook, data, kpiConfig);
+
+            // Guardar archivo
+            await this.saveWorkbook(workbook, `${filename}_${this.getDateString()}.xlsx`);
+
+            return { success: true, format: 'comparative' };
+        } catch (error) {
+            console.error('Error exportando Excel comparativo:', error);
             return { success: false, error: error.message };
         }
     }
