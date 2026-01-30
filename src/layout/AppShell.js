@@ -394,8 +394,13 @@ export class AppShell {
         });
       }
 
-      const avg = count > 0 ? (sum / count) : 0;
-      const formattedValue = config.isPercent ? avg.toFixed(1) + '%' : avg.toFixed(2);
+      let avg = count > 0 ? (sum / count) : 0;
+      // Apply maxValue cap if defined (e.g., transfer at 100%)
+      if (config.maxValue !== undefined && avg > config.maxValue) {
+        avg = config.maxValue;
+      }
+      const decimals = config.decimals !== undefined ? config.decimals : (config.isPercent ? 1 : 2);
+      const formattedValue = config.isPercent ? avg.toFixed(decimals) + '%' : avg.toFixed(decimals);
 
       // Determine Status (Traffic Light)
       let status = 'neutral';
