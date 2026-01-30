@@ -356,7 +356,7 @@ export class DataNormalizer {
             adherence: find(['adherencia al puesto %', 'adherencia']),
             aht: find(['aht', 'tmo']),
             tipif: find(['% tipificacion', 'tipificación']),
-            transfer: find(['transfer rate', 'transfer']),
+            transfer: find(['transfer rate'], ['transferidas', 'encuesta']),
             nps: find(['nps']),
             ncp: find(['ncp']),
             calls: find(['llamadas', 'calls'])
