@@ -75,9 +75,9 @@ export class ComparativeFormat {
 
             const row = worksheet.addRow([
                 kpi.label,
-                evolution.start !== null ? evolution.start.toFixed(1) : '-',
-                evolution.end !== null ? evolution.end.toFixed(1) : '-',
-                evolution.diff !== null ? (evolution.diff > 0 ? `+${evolution.diff.toFixed(1)}` : evolution.diff.toFixed(1)) : '-',
+                this.formatNumber(evolution.start),
+                this.formatNumber(evolution.end),
+                this.formatDiff(evolution.diff),
                 evolution.trend
             ]);
 
@@ -90,7 +90,7 @@ export class ComparativeFormat {
 
             // Color de variación
             const diffCell = row.getCell(4);
-            if (evolution.diff !== null) {
+            if (evolution.diff !== null && !isNaN(evolution.diff)) {
                 const isPositive = kpi.type === 'min' ? evolution.diff > 0 : evolution.diff < 0;
                 diffCell.font = {
                     color: { argb: isPositive ? 'FF15803D' : 'FFDC2626' },
@@ -150,21 +150,30 @@ export class ComparativeFormat {
             const values = [];
             periods.forEach(period => {
                 const value = this.getKpiValueForPeriod(agent, kpi.key, period);
-                rowData.push(value !== null ? value : '-');
-                if (value !== null) values.push(value);
+                // Solo agregar valores válidos (no null, no NaN)
+                if (value !== null && !isNaN(value)) {
+                    rowData.push(value);
+                    values.push(value);
+                } else {
+                    rowData.push('-');
+                }
             });
 
             // Calcular delta total
-            let delta = '-';
+            let delta = null;
             let trend = '-';
             if (values.length >= 2) {
                 const first = values[0];
                 const last = values[values.length - 1];
                 delta = last - first;
-                trend = delta > 0 ? '📈' : delta < 0 ? '📉' : '➡️';
+                if (!isNaN(delta)) {
+                    trend = delta > 0 ? '📈' : delta < 0 ? '📉' : '➡️';
+                } else {
+                    delta = null;
+                }
             }
 
-            rowData.push(delta !== '-' ? (delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)) : '-');
+            rowData.push(this.formatDiff(delta));
             rowData.push(trend);
 
             const row = worksheet.addRow(rowData);
@@ -174,7 +183,7 @@ export class ComparativeFormat {
                 const cell = row.getCell(3 + pIdx);
                 const value = this.getKpiValueForPeriod(agent, kpi.key, period);
 
-                if (value !== null) {
+                if (value !== null && !isNaN(value)) {
                     const meetsTarget = kpi.type === 'min' ? value >= kpi.target : value <= kpi.target;
                     cell.fill = {
                         type: 'pattern',
@@ -185,7 +194,7 @@ export class ComparativeFormat {
             });
 
             // Color de delta
-            if (delta !== '-') {
+            if (delta !== null && !isNaN(delta)) {
                 const deltaCell = row.getCell(3 + periods.length);
                 const isPositive = kpi.type === 'min' ? delta > 0 : delta < 0;
                 deltaCell.font = { color: { argb: isPositive ? 'FF15803D' : 'FFDC2626' }, bold: true };
@@ -230,7 +239,7 @@ export class ComparativeFormat {
                 evolution: evolution.score,
                 trend: evolution.trend
             };
-        }).filter(a => a.evolution !== null);
+        }).filter(a => a.evolution !== null && !isNaN(a.evolution));
 
         // Top 10 mejoras
         worksheet.addRow(['🚀 TOP 10 - MAYOR MEJORA']);
@@ -249,7 +258,7 @@ export class ComparativeFormat {
                 idx + 1,
                 agent.agent || '-',
                 agent.supervisor || '-',
-                agent.evolution > 0 ? `+${agent.evolution.toFixed(1)}` : agent.evolution.toFixed(1),
+                this.formatDiff(agent.evolution),
                 agent.trend
             ]);
 
@@ -282,7 +291,7 @@ export class ComparativeFormat {
                 idx + 1,
                 agent.agent || '-',
                 agent.supervisor || '-',
-                agent.evolution.toFixed(1),
+                this.formatNumber(agent.evolution),
                 agent.trend
             ]);
 
@@ -303,6 +312,28 @@ export class ComparativeFormat {
     }
 
     // ===== HELPERS =====
+
+    /**
+     * Formatea un número, devuelve '-' si es null, undefined o NaN
+     */
+    static formatNumber(value) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '-';
+        }
+        return parseFloat(value).toFixed(1);
+    }
+
+    /**
+     * Formatea una diferencia con signo, devuelve '-' si es null, undefined o NaN
+     */
+    static formatDiff(value) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '-';
+        }
+        const num = parseFloat(value);
+        if (isNaN(num)) return '-';
+        return num > 0 ? `+${num.toFixed(1)}` : num.toFixed(1);
+    }
 
     static getAllPeriods(data) {
         const periodsSet = new Set();
@@ -326,13 +357,15 @@ export class ComparativeFormat {
         if (agent.history && Array.isArray(agent.history)) {
             const historyEntry = agent.history.find(h => h.period === period);
             if (historyEntry && historyEntry.kpis && historyEntry.kpis[kpiKey] !== undefined) {
-                return parseFloat(historyEntry.kpis[kpiKey]);
+                const val = parseFloat(historyEntry.kpis[kpiKey]);
+                return isNaN(val) ? null : val;
             }
         }
 
         // Si es el periodo actual, buscar en kpis
         if (agent._period === period && agent.kpis && agent.kpis[kpiKey] !== undefined) {
-            return parseFloat(agent.kpis[kpiKey]);
+            const val = parseFloat(agent.kpis[kpiKey]);
+            return isNaN(val) ? null : val;
         }
 
         return null;
@@ -353,8 +386,8 @@ export class ComparativeFormat {
             const startVal = this.getKpiValueForPeriod(agent, kpiKey, firstPeriod);
             const endVal = this.getKpiValueForPeriod(agent, kpiKey, lastPeriod);
 
-            if (startVal !== null) { startSum += startVal; startCount++; }
-            if (endVal !== null) { endSum += endVal; endCount++; }
+            if (startVal !== null && !isNaN(startVal)) { startSum += startVal; startCount++; }
+            if (endVal !== null && !isNaN(endVal)) { endSum += endVal; endCount++; }
         });
 
         const start = startCount > 0 ? startSum / startCount : null;
@@ -362,7 +395,7 @@ export class ComparativeFormat {
         const diff = (start !== null && end !== null) ? end - start : null;
 
         let trend = '-';
-        if (diff !== null) {
+        if (diff !== null && !isNaN(diff)) {
             if (diff > 2) trend = '📈 Mejora';
             else if (diff < -2) trend = '📉 Retroceso';
             else trend = '➡️ Estable';
@@ -388,8 +421,12 @@ export class ComparativeFormat {
             const startVal = first.kpis ? first.kpis[kpi.key] : null;
             const endVal = last.kpis ? last.kpis[kpi.key] : null;
 
-            if (startVal !== null && endVal !== null && !isNaN(startVal) && !isNaN(endVal)) {
-                let diff = parseFloat(endVal) - parseFloat(startVal);
+            // Validar ambos valores
+            const startNum = parseFloat(startVal);
+            const endNum = parseFloat(endVal);
+
+            if (!isNaN(startNum) && !isNaN(endNum)) {
+                let diff = endNum - startNum;
                 // Normalizar: para KPIs tipo max, invertir el signo
                 if (kpi.type === 'max') diff = -diff;
                 totalDiff += diff;
@@ -400,6 +437,8 @@ export class ComparativeFormat {
         if (validKpis === 0) return { score: null, trend: '-' };
 
         const avgDiff = totalDiff / validKpis;
+        if (isNaN(avgDiff)) return { score: null, trend: '-' };
+
         let trend = '➡️';
         if (avgDiff > 2) trend = '📈';
         else if (avgDiff < -2) trend = '📉';
