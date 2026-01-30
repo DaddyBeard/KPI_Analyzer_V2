@@ -323,7 +323,7 @@ export class AppShell {
                             <h3 class="text-xl font-bold text-slate-900 tracking-tight">Exportar a Excel</h3>
                             <span class="text-xs px-2 py-1 bg-green-600 text-white rounded-full font-semibold">NUEVO</span>
                           </div>
-                          <p class="text-slate-600 text-sm mt-1">3 formatos disponibles</p>
+                          <p class="text-slate-600 text-sm mt-1">5 formatos disponibles</p>
                        </div>
                    </div>
                    
