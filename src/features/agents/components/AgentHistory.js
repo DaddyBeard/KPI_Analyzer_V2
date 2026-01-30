@@ -73,17 +73,17 @@ export const AgentHistory = {
            
            <div class="overflow-x-auto">
              <table class="w-full text-left border-collapse">
-               <thead>
-                 <tr class="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50/30">
+               <thead class="sticky top-0 z-50 bg-slate-50">
+                 <tr class="">
                    <!-- Top Left Corner -->
-                   <th class="px-4 py-3 font-bold sticky left-0 bg-white z-20 border-r border-slate-100 shadow-sm min-w-[150px]">
-                      INDICADOR
+                   <th class="px-4 py-3 font-bold sticky left-0 bg-slate-50 z-20 border-r border-b border-gray-300 shadow-sm min-w-[150px]">
+                      <span class="text-[10px] text-slate-600 uppercase tracking-widest">INDICADOR</span>
                    </th>
                    <!-- Evolution Column (only if we have 2+ periods) -->
                    ${periods.length >= 2 ? `
-                   <th class="px-4 py-3 font-bold text-center whitespace-nowrap min-w-[100px] bg-indigo-50/50 border-r border-indigo-100">
+                   <th class="px-4 py-3 font-bold text-center whitespace-nowrap min-w-[100px] bg-indigo-50/50 border-r border-b border-gray-300">
                      <div class="flex flex-col items-center">
-                       <span class="text-indigo-700">EVOLUCIÓN</span>
+                       <span class="text-[10px] text-indigo-700 uppercase tracking-wider">EVOLUCIÓN</span>
                        <span class="text-[9px] text-indigo-400 font-normal mt-1">
                          ${periods[0].period} vs ${periods[1].period}
                        </span>
@@ -92,9 +92,9 @@ export const AgentHistory = {
                    ` : ''}
                    <!-- Period Columns -->
                    ${periods.map(p => `
-                     <th class="px-4 py-3 font-bold text-center whitespace-nowrap min-w-[100px]">
+                     <th class="px-4 py-3 font-bold text-center whitespace-nowrap min-w-[100px] border-r border-b border-gray-300">
                        <div class="flex flex-col items-center">
-                         <span>${p.period}</span>
+                         <span class="text-[10px] text-slate-600 uppercase tracking-wider">${p.period}</span>
                          <span class="text-[9px] text-slate-300 font-normal truncate max-w-[100px] mt-1" title="${p.source}">
                            ${p.source || 'Desconocido'}
                          </span>
@@ -103,12 +103,12 @@ export const AgentHistory = {
                    `).join('')}
                  </tr>
                </thead>
-               <tbody class="divide-y divide-slate-50 text-xs">
+               <tbody class="text-xs">
                  ${KPI_CONFIG.map(kpi => {
       return `
-                      <tr class="hover:bg-slate-50/80 transition-colors group">
+                      <tr class="hover:bg-slate-50/80 transition-colors group border-b border-slate-200 last:border-none">
                         <!-- KPI Row Header -->
-                        <td class="px-4 py-3 sticky left-0 bg-white group-hover:bg-[#fcfdfec0] z-10 border-r border-slate-100 shadow-sm">
+                        <td class="px-4 py-3 sticky left-0 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-200 shadow-sm">
                             <div class="flex flex-col">
                                 <span class="font-bold text-slate-700">${kpi.label}</span>
                                 <span class="text-[9px] text-slate-400 font-normal">Obj: ${kpi.target}${kpi.isPercent ? '%' : ''}</span>
@@ -121,14 +121,14 @@ export const AgentHistory = {
           const previousVal = periods[1].kpis ? periods[1].kpis[kpi.key] : null;
 
           if (latestVal === null || latestVal === undefined || previousVal === null || previousVal === undefined) {
-            return '<td class="px-4 py-3 text-center text-slate-300 bg-slate-50/30">-</td>';
+            return '<td class="px-4 py-3 text-center text-slate-300 bg-slate-50/30 border-r border-slate-200">-</td>';
           }
 
           const latest = parseFloat(String(latestVal).replace('%', '').replace(',', '.'));
           const previous = parseFloat(String(previousVal).replace('%', '').replace(',', '.'));
 
           if (isNaN(latest) || isNaN(previous)) {
-            return '<td class="px-4 py-3 text-center text-slate-300 bg-slate-50/30">-</td>';
+            return '<td class="px-4 py-3 text-center text-slate-300 bg-slate-50/30 border-r border-slate-200">-</td>';
           }
 
           const diff = latest - previous;
@@ -141,7 +141,7 @@ export const AgentHistory = {
           const displayDiff = kpi.isPercent ? diff.toFixed(1) + '%' : diff.toFixed(2);
 
           return `
-                          <td class="px-4 py-3 text-center bg-indigo-50/20">
+                          <td class="px-4 py-3 text-center bg-indigo-50/20 border-r border-slate-200">
                             <div class="flex items-center justify-center gap-1">
                               <span class="${colorClass} px-2 py-1 rounded font-bold text-xs inline-flex items-center gap-1">
                                 <span class="text-base">${arrow}</span>
@@ -157,7 +157,7 @@ export const AgentHistory = {
           const val = record.kpis ? record.kpis[kpi.key] : null;
 
           if (val === null || val === undefined) {
-            return '<td class="px-4 py-3 text-center text-slate-300">-</td>';
+            return '<td class="px-4 py-3 text-center text-slate-300 border-r border-slate-200">-</td>';
           }
 
           const numVal = parseFloat(String(val).replace('%', '').replace(',', '.'));
@@ -173,7 +173,7 @@ export const AgentHistory = {
             : 'text-rose-500 font-medium bg-rose-50/30 rounded';
 
           return `
-                              <td class="px-4 py-3 text-center border-l border-dashed border-slate-50">
+                              <td class="px-4 py-3 text-center border-r border-slate-200">
                                 <span class="${styleClass} px-2 py-1 inline-block min-w-[60px]">
                                     ${displayVal}
                                 </span>
