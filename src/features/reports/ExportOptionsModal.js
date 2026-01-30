@@ -6,6 +6,7 @@
  */
 
 import { ExcelExportService } from './ExcelExportService.js';
+import { createIcons, icons } from 'lucide';
 
 export class ExportOptionsModal {
 
@@ -171,9 +172,7 @@ export class ExportOptionsModal {
     document.body.appendChild(overlay);
 
     // Inicializar iconos de Lucide
-    if (window.lucide) {
-      window.lucide.createIcons();
-    }
+    createIcons({ icons });
 
     // Event listeners
     this.attachEventListeners(overlay, data, kpiConfig);
@@ -272,9 +271,7 @@ export class ExportOptionsModal {
         </div>
       `;
 
-      if (window.lucide) {
-        window.lucide.createIcons();
-      }
+      createIcons({ icons });
     }
   }
 
