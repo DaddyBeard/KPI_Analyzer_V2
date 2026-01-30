@@ -353,7 +353,7 @@ export class AppShell {
       if (data.length === 0) return alert('No hay datos cargados para exportar.');
 
       // Mostrar modal de selección de formato
-      ExportOptionsModal.show(data, kpiContext.getConfig());
+      ExportOptionsModal.show(data, kpiContext.getKPIs());
     });
   }
 
