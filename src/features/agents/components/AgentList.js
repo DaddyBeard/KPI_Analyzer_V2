@@ -194,6 +194,7 @@ export class AgentList {
                              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">${kpi.label}</span>
                              ${this.getSortIcon(kpi.key)}
                           </div>
+                          <span class="text-[9px] text-slate-400 font-normal">Obj: ${kpi.target}${kpi.isPercent ? '%' : ''}</span>
                       </div>
                     </th>
                   `).join('')}

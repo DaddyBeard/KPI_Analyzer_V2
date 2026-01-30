@@ -89,8 +89,6 @@ export const KPI_CONFIG = [
         isPercent: true,
         decimals: 0,
         icon: 'phone',
-        description: 'Nivel calidad objetiva Llamadas',
-        secondaryKey: 'calls',
-        secondaryLabel: 'Llamadas'
+        description: 'Nivel calidad objetiva Llamadas'
     }
 ];
