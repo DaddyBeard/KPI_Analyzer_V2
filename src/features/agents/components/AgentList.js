@@ -1,5 +1,7 @@
 import { createIcons, icons } from 'lucide';
 import { KPI_CONFIG } from '../../../config/kpi.config.js';
+import { kpiContext } from '../../settings/logic/KPIContext.js';
+
 
 export class AgentList {
   constructor(container) {
@@ -11,14 +13,27 @@ export class AgentList {
       supervisor: 'all'
     };
     this.sortConfig = { key: 'ncoBO', direction: 'desc' };
+
+    // Pagination State
+    this.currentPage = 1;
+    this.itemsPerPage = 50;
+
     this.supervisors = [];
 
-    // KPI Configuration (Centralized)
-    this.kpiConfig = KPI_CONFIG;
+    // KPI Configuration (Dynamic)
+    this.kpiConfig = kpiContext.getKPIs();
+
+    // Subscribe to config changes
+    kpiContext.subscribe((newConfig) => {
+      this.kpiConfig = newConfig;
+      this.renderStructure(); // Re-render headers
+      this.updateTable();     // Re-render rows
+    });
 
     this.handleSearch = this.handleSearch.bind(this);
     this.handleFilter = this.handleFilter.bind(this);
     this.handleSort = this.handleSort.bind(this);
+    this.handlePageChange = this.handlePageChange.bind(this);
     this.isInitialized = false;
   }
 
@@ -43,6 +58,9 @@ export class AgentList {
   applyFilters() {
     const searchLower = this.filters.search.toLowerCase();
     const supervisorFn = (s) => this.filters.supervisor === 'all' || String(s).toLowerCase() === this.filters.supervisor.toLowerCase();
+
+    // Reset to first page on filter change
+    this.currentPage = 1;
 
     let filtered = this.data.filter(agent => {
       const name = String(agent.agent || '').toLowerCase();
@@ -155,35 +173,34 @@ export class AgentList {
            </div>
         </div>
 
-        <!-- Data Grid Container (Flex Column) -->
-        <div class="bg-white rounded-xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] border border-slate-100 flex-1 overflow-hidden flex flex-col relative w-full min-h-0">
+        <!-- Data Grid Container (Standard Border) -->
+        <div class="bg-white rounded-xl border border-slate-200 flex-1 overflow-hidden flex flex-col relative w-full min-h-0">
           
           <!-- Scrollable Table Area (Flex-1) -->
           <div class="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative">
             <table class="w-full text-left border-collapse" style="width: 100% !important;">
-              <thead class="sticky top-0 z-50">
-                <tr class="bg-slate-50 border-b-2 border-slate-200 shadow-sm">
-                  <th class="px-4 py-4 text-left sticky left-0 z-50 bg-slate-50 border-r border-slate-200/60 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)] w-[280px] cursor-pointer group hover:bg-slate-100 transition-colors" data-sort-key="agentName">
+               <thead class="sticky top-0 z-50 bg-slate-50">
+                <tr class="">
+                  <th class="px-4 py-3 text-left sticky left-0 z-50 bg-slate-50 w-[260px] cursor-pointer group hover:bg-slate-100 transition-colors border-r border-b border-gray-300" data-sort-key="agentName">
                       <div class="flex items-center gap-2">
                         <span class="text-[11px] font-black text-slate-600 uppercase tracking-widest pl-1">Agente / Supervisor</span>
                         ${this.getSortIcon('agentName')}
                       </div>
                   </th>
                   ${this.kpiConfig.map(kpi => `
-                    <th class="px-2 py-3 text-center min-w-[95px] group cursor-pointer hover:bg-slate-100 transition-colors border-r border-slate-100/50 last:border-none" data-sort-key="${kpi.key}">
+                   <th class="px-2 py-2 text-center min-w-[100px] group cursor-pointer hover:bg-slate-100 transition-colors border-b border-r border-gray-300" data-sort-key="${kpi.key}">
                       <div class="flex flex-col items-center gap-1 relative">
                           <div class="flex items-center gap-1">
-                             <span class="text-[10px] font-extrabold text-slate-700 uppercase tracking-wide group-hover:text-indigo-600 transition-colors">${kpi.label}</span>
+                             <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">${kpi.label}</span>
                              ${this.getSortIcon(kpi.key)}
                           </div>
-                          <span class="text-[9px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">Obj: ${kpi.target}</span>
                       </div>
                     </th>
                   `).join('')}
-                  <th class="px-3 py-2 text-right sticky right-0 z-50 bg-slate-50 shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.05)] w-[60px] border-l border-slate-200/60"></th>
+                  <th class="px-3 py-2 text-right sticky right-0 z-50 bg-slate-50 w-[60px] border-b border-gray-300"></th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-200" id="agentsTableBody">
+              <tbody class="" id="agentsTableBody">
                 <!-- Rows injected here -->
               </tbody>
             </table>
@@ -264,8 +281,54 @@ export class AgentList {
       return;
     }
 
-    const rows = this.filteredData.slice(0, 50).map(agent => this.renderRow(agent)).join('');
+    // Pagination Logic
+    const start = (this.currentPage - 1) * this.itemsPerPage;
+    const end = start + this.itemsPerPage;
+    const paginatedData = this.filteredData.slice(start, end);
+
+    const rows = paginatedData.map(agent => this.renderRow(agent)).join('');
     tbody.innerHTML = rows;
+
+    createIcons({ icons, nameAttr: 'data-lucide' });
+    this.renderPagination();
+  }
+
+  handlePageChange(newPage) {
+    if (newPage < 1 || newPage > Math.ceil(this.filteredData.length / this.itemsPerPage)) return;
+    this.currentPage = newPage;
+    this.updateTable();
+  }
+
+  renderPagination() {
+    const footer = this.container.querySelector('#resultsFooter');
+    if (!footer) return;
+
+    const totalPages = Math.ceil(this.filteredData.length / this.itemsPerPage);
+    const start = (this.currentPage - 1) * this.itemsPerPage + 1;
+    const end = Math.min(this.currentPage * this.itemsPerPage, this.filteredData.length);
+
+    footer.innerHTML = `
+        <div class="flex items-center gap-4">
+            <span>Mostrando ${start}-${end} de ${this.filteredData.length} registros</span>
+            <span class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md border border-indigo-100 text-[10px] font-bold uppercase tracking-wider">
+                Página ${this.currentPage} de ${totalPages}
+            </span>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <button class="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+                ${this.currentPage === 1 ? 'disabled' : ''} id="prevPageBtn">
+                <i data-lucide="chevron-left" class="w-4 h-4 text-slate-600"></i>
+            </button>
+            <button class="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+                ${this.currentPage === totalPages ? 'disabled' : ''} id="nextPageBtn">
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-600"></i>
+            </button>
+        </div>
+    `;
+
+    footer.querySelector('#prevPageBtn')?.addEventListener('click', () => this.handlePageChange(this.currentPage - 1));
+    footer.querySelector('#nextPageBtn')?.addEventListener('click', () => this.handlePageChange(this.currentPage + 1));
 
     createIcons({ icons, nameAttr: 'data-lucide' });
   }
@@ -280,8 +343,8 @@ export class AgentList {
     const colorClass = colors[name.charCodeAt(0) % colors.length];
 
     return `
-        <tr class="group transition-all duration-200 hover:bg-slate-50/80 hover:shadow-sm relative">
-          <td class="px-4 py-2 sticky left-0 bg-white group-hover:bg-[#fcfdfec0] z-10 shadow-[2px_0_10px_-4px_rgba(0,0,0,0.05)] whitespace-nowrap border-r border-transparent group-hover:border-slate-100 border-b border-slate-300">
+        <tr class="group transition-all duration-75 hover:bg-slate-50 relative border-b border-slate-200 last:border-none">
+          <td class="px-4 py-2.5 sticky left-0 bg-white group-hover:bg-slate-50 z-10 whitespace-nowrap border-r border-slate-200">
             <div class="flex items-center gap-3">
                <div class="w-8 h-8 rounded-lg ${colorClass} flex items-center justify-center text-[10px] font-black shadow-sm">
                   ${initials}
@@ -308,9 +371,9 @@ export class AgentList {
             </div>
         `;
       }
-      return `<td class="px-2 py-2 align-middle border-b border-slate-300">${content}</td>`;
+      return `<td class="px-2 py-2 align-middle border-r border-slate-200">${content}</td>`;
     }).join('')}
-          <td class="px-3 py-2 text-right sticky right-0 bg-white group-hover:bg-[#fcfdfec0] z-10 transition-all border-l border-transparent group-hover:border-slate-100 border-b border-slate-300">
+          <td class="px-3 py-2 text-right sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-all">
              <button class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" data-action="view-agent" data-agent="${encodeURIComponent(name)}" title="Ver Ficha">
                 <i data-lucide="arrow-right" class="w-4 h-4"></i>
              </button>
@@ -324,11 +387,13 @@ export class AgentList {
     if (kpi.type === 'min') isGood = value >= kpi.target;
     if (kpi.type === 'max') isGood = value <= kpi.target;
 
-    if (isGood) return { badge: 'bg-emerald-50 text-emerald-600 border-emerald-100' };
+    if (isGood) return { badge: 'text-emerald-700 bg-emerald-100/50' };
 
     const diff = Math.abs((value - kpi.target) / kpi.target);
-    if (diff < 0.15) return { badge: 'bg-amber-50 text-amber-600 border-amber-100' };
+    const threshold = kpi.warningThreshold !== undefined ? kpi.warningThreshold : 0.15;
 
-    return { badge: 'bg-rose-50 text-rose-600 border-rose-100' };
+    if (diff < threshold) return { badge: 'text-amber-700 bg-amber-100/50' };
+
+    return { badge: 'text-rose-700 bg-rose-100/50' };
   }
 }

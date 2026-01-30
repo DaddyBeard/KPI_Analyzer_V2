@@ -1,3 +1,4 @@
+import './styles/tailwind.css';
 import './styles/theme.css';
 import './styles/utilities.css';
 import './styles/sidebar.css';

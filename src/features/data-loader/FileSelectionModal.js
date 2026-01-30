@@ -1,5 +1,6 @@
 
 import { createIcons, icons } from 'lucide';
+import { escapeHTML } from '../../shared/utils.js';
 
 export class FileSelectionModal {
     constructor() {
@@ -82,9 +83,9 @@ export class FileSelectionModal {
             <div class="space-y-2">
                 ${files.map(f => `
                     <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors group">
-                        <input type="checkbox" class="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary file-checkbox" checked data-name="${f.name}">
+                        <input type="checkbox" class="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary file-checkbox" checked data-name="${escapeHTML(f.name)}">
                         <div class="flex-1">
-                            <p class="text-sm font-medium text-slate-700 group-hover:text-slate-900">${f.name}</p>
+                            <p class="text-sm font-medium text-slate-700 group-hover:text-slate-900">${escapeHTML(f.name)}</p>
                             <p class="text-xs text-slate-400">${(f.size / 1024).toFixed(0)} KB</p>
                         </div>
                     </label>

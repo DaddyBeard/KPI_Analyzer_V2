@@ -4,40 +4,110 @@ import { createIcons, icons } from 'lucide';
 import { readExcelFile } from '../features/data-loader/excel-reader.js';
 import { DataMerger } from '../features/data-loader/DataMerger.js';
 import { store } from '../core/Store.js';
-import { AgentModal } from '../features/agents/components/AgentModal.js';
+import { AgentModalV4 } from '../features/agents/components/AgentModal_Refactored.js';
 import { AgentList } from '../features/agents/components/AgentList.js';
-import { ChartComponent } from '../features/dashboard/components/ChartComponent.js';
+// import { ChartComponent } from '../features/dashboard/components/ChartComponent.js';
+import * as d3 from 'd3';
 import { ReportService } from '../features/reports/ReportService.js';
 import { demoData } from '../data/demo-data.js';
 import { DataNormalizer } from '../features/data-loader/DataNormalizer.js';
 import { FileSelectionModal } from '../features/data-loader/FileSelectionModal.js';
+import { KPI_CONFIG } from '../config/kpi.config.js';
+import { kpiContext } from '../features/settings/logic/KPIContext.js';
+import { Settings } from '../features/settings/components/Settings.js';
+import { escapeHTML } from '../shared/utils.js';
+import { WelcomeScreen } from '../features/onboarding/WelcomeScreen.js';
+
 
 export class AppShell {
   constructor() {
+    console.log('%c APP SHELL RELOADED - USING AGENTMODAL V4', 'background: red; color: yellow; font-size: 20px;');
     this.appElement = document.getElementById('app');
     this.sidebar = new Sidebar();
-    this.agentModal = new AgentModal();
+    this.agentModal = new AgentModalV4();
     this.fileSelectionModal = new FileSelectionModal();
     this.mainContent = document.createElement('main');
-    // Adjusted margins and padding for new sidebar and premium spacing
-    this.mainContent.className = 'flex-1 h-screen overflow-hidden bg-slate-50 relative flex flex-col min-w-0';
+    // Nexus Style: High density, clean white background
+    this.mainContent.className = 'flex-1 h-screen overflow-hidden bg-[#F9FAFB] relative flex flex-col min-w-0 font-inter';
     this.mainContent.style.transition = 'opacity 200ms ease, transform 200ms ease';
     this.currentRoute = 'dashboard';
-    this.chartComponent = new ChartComponent();
+
+    // Chart Configuration State
+    this.activeChartConfig = 'performance';
+    this.chartConfigs = {
+      performance: {
+        id: 'performance',
+        label: 'Rendimiento (AHT vs Calidad)',
+        xKey: 'aht', xLabel: 'AHT (Segundos)', xTarget: 340, xInverted: true, // Lower AHT is better? Usually yes, but X axis is standard.
+        yKey: 'ncoBO', yLabel: 'Calidad (NCO %)', yTarget: 85,
+        zKey: 'gestH', zLabel: 'Volumen',
+        quadrant: 'topLeft' // Good Zone
+      },
+      efficiency: {
+        id: 'efficiency',
+        label: 'Eficiencia (Volumen)',
+        xKey: 'gestH', xLabel: 'Gestiones / Hora', xTarget: 2.5,
+        yKey: 'cerrH', yLabel: 'Cierres / Hora', yTarget: 1.8,
+        zKey: 'aht', zLabel: 'AHT (Tamaño)',
+        quadrant: 'topRight'
+      },
+      quality: {
+        id: 'quality',
+        label: 'Satisfacción (NPS vs Calidad)',
+        xKey: 'nps', xLabel: 'NPS', xTarget: 30,
+        yKey: 'ncoBO', yLabel: 'Calidad Interna (NCO)', yTarget: 85,
+        zKey: 'calls', zLabel: 'Llamadas',
+        quadrant: 'topRight'
+      }
+    };
+
     this.init();
   }
 
-  init() {
+  async init() {
+    // Initial Loading State while Store is initializing from IndexedDB
+    this.appElement.innerHTML = `
+      <div class="h-screen w-full flex flex-col items-center justify-center bg-slate-50 gap-4">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <p class="text-slate-400 font-medium animate-pulse">Restaurando sesión...</p>
+      </div>`;
+
+    await store.init();
+
     this.appElement.innerHTML = '';
+
     this.appElement.className = 'flex h-screen w-full overflow-hidden bg-slate-50 font-sans';
     this.appElement.appendChild(this.sidebar.getElement());
     this.appElement.appendChild(this.mainContent);
-    this.navigateTo('dashboard');
-    store.addEventListener('data-updated', () => this.navigateTo(this.currentRoute));
+
+    // Data-driven navigation: if no data, go to welcome
+    const data = store.getAllData();
+    if (data.length === 0) {
+      this.navigateTo('welcome');
+    } else {
+      this.navigateTo('dashboard');
+    }
+
+    store.addEventListener('data-updated', () => {
+      // If we are in welcome and data arrives, auto-navigate to dashboard
+      if (this.currentRoute === 'welcome' && store.getData().length > 0) {
+        this.navigateTo('dashboard');
+      } else {
+        this.navigateTo(this.currentRoute);
+      }
+    });
     store.addEventListener('filter-updated', () => this.navigateTo(this.currentRoute));
+    kpiContext.subscribe(() => this.navigateTo(this.currentRoute));
+
     this.mainContent.addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-action="view-agent"]');
       if (btn) this.handleViewAgent(btn.getAttribute('data-agent'));
+
+      // Close chart menu if clicking outside
+      if (!e.target.closest('#chartConfigBtn') && !e.target.closest('#chartConfigMenu')) {
+        const menu = document.getElementById('chartConfigMenu');
+        if (menu) menu.remove();
+      }
     });
 
     // Global Event for Exporting Individual Agent
@@ -47,9 +117,7 @@ export class AppShell {
 
     // Global Event for Viewing Agent Profile (Search)
     window.addEventListener('view-agent-profile', (e) => {
-      if (e.detail.agent) {
-        this.agentModal.open(e.detail.agent);
-      }
+      this.handleViewAgent(e.detail.agent || e.detail.agentId);
     });
 
     window.addEventListener('navigate', (e) => this.navigateTo(e.detail.route));
@@ -62,6 +130,7 @@ export class AppShell {
     window.addEventListener('load-demo', () => this.handleLoadDemo());
     this.refreshIcons();
   }
+
 
   async handleBatchProcess(files) {
     this.mainContent.innerHTML = `
@@ -84,7 +153,7 @@ export class AppShell {
           const sheets = await readExcelFile(file);
           // Fix Collision: Prefix sheet names with filename
           Object.keys(sheets).forEach(sheetName => {
-            allSheets[`${file.name}::${sheetName}`] = sheets[sheetName];
+            allSheets[`${escapeHTML(file.name)}::${escapeHTML(sheetName)}`] = sheets[sheetName];
           });
         } catch (err) {
           console.warn(`Error reading ${file.name}`, err);
@@ -113,7 +182,7 @@ export class AppShell {
       this.navigateTo('dashboard');
 
     } catch (error) {
-      console.error(error);
+      console.error('Error batch processing:', error.message); // Log message mainly, avoid dumping raw data object if possible
       alert('Error procesando archivos: ' + error.message);
       this.refreshIcons();
     }
@@ -134,11 +203,27 @@ export class AppShell {
     }, 500);
   }
 
-  handleViewAgent(agentName) {
-    const decodedName = decodeURIComponent(agentName);
+  handleViewAgent(identifier) {
+    // If identifier is already an object (agent data), open directly
+    if (typeof identifier === 'object' && identifier !== null) {
+      this.agentModal.open(identifier);
+      return;
+    }
+
+    // identifier can be ID (usually string/number) or Name (string)
     const data = store.getData();
-    const agent = data.find(a => a.agent === decodedName);
-    if (agent) this.agentModal.open(agent);
+    let agent = data.find(a => a.id === identifier);
+
+    if (!agent && typeof identifier === 'string') {
+      const decodedName = decodeURIComponent(identifier);
+      agent = data.find(a => a.agent === decodedName);
+    }
+
+    if (agent) {
+      this.agentModal.open(agent);
+    } else {
+      console.warn('Agent not found for identifier:', identifier);
+    }
   }
 
   async handleFileSelect(file) {
@@ -155,15 +240,18 @@ export class AppShell {
       const mergedData = DataMerger.merge(sheetsData);
       store.setData(mergedData);
     } catch (error) {
-      console.error(error);
+      console.error('Error processing single file:', error.message);
       this.refreshIcons();
     }
   }
 
   navigateTo(route) {
     this.currentRoute = route;
+    this._checkSidebarVisibility(route); // Ensure sidebar state is correct
     if (route !== 'agents') this.agentListComponent = null;
-    if (route !== 'dashboard') this.chartComponent.destroy();
+
+    // D3 destroys itself by clearing innerHTML on render, no explicit destroy needed for the previous class
+    // if (route !== 'dashboard' && this.chartComponent) this.chartComponent.destroy();
 
     // Fade out effect
     this.mainContent.style.opacity = '0';
@@ -175,8 +263,11 @@ export class AppShell {
         case 'dashboard': this.renderDashboard(); break;
         case 'agents': this.renderAgents(); break;
         case 'reports': this.renderReports(); break;
+        case 'settings': this.renderSettings(); break;
+        case 'welcome': this.renderWelcome(); break;
         default: this.renderPlaceholder('Próximamente');
       }
+
       this.refreshIcons();
 
       // Fade in effect
@@ -195,36 +286,47 @@ export class AppShell {
 
          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- General Report (Premium Card) -->
-            <div class="group bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
-               <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-[4rem] -mr-8 -mt-8 z-0 transition-transform group-hover:scale-110"></div>
-               
-               <div class="relative z-10 flex flex-col h-full items-start gap-6">
-                   <div class="p-4 bg-indigo-50 text-indigo-600 rounded-2xl shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
-                      <i data-lucide="file-bar-chart" class="w-8 h-8"></i>
+            <!-- General Report (Corporate Card) -->
+            <div class="group bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-200 relative overflow-hidden">
+               <div class="relative z-10 flex flex-col h-full items-start gap-4">
+                   <div class="flex items-center gap-4 w-full">
+                       <div class="p-3 bg-indigo-50 text-indigo-700 rounded-lg shrink-0">
+                          <i data-lucide="file-bar-chart" class="w-6 h-6"></i>
+                       </div>
+                       <div>
+                          <h3 class="text-xl font-bold text-slate-900 tracking-tight">Ranking General</h3>
+                          <p class="text-slate-500 text-sm mt-1">Exportación oficial de KPIs</p>
+                       </div>
                    </div>
-                   <div>
-                      <h3 class="text-2xl font-bold text-slate-800 tracking-tight">Ranking General</h3>
-                      <p class="text-slate-500 mt-2 leading-relaxed">Exporta la tabla completa de agentes con todos los KPIs calculados en formato PDF profesional.</p>
-                   </div>
-                   <button id="btnExportRanking" class="mt-auto px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-indigo-600 hover:shadow-lg hover:shadow-indigo-500/30 transition-all flex items-center gap-3 w-full justify-center font-bold tracking-wide">
-                      <i data-lucide="download" class="w-5 h-5"></i> Descargar PDF
+                   
+                   <p class="text-slate-600 text-sm leading-relaxed border-t border-slate-100 pt-3 w-full">
+                     Genera un informe PDF completo con la tabla detallada de todos los agentes y sus indicadores calculados.
+                   </p>
+
+                   <button id="btnExportRanking" class="mt-4 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 w-full justify-center text-sm font-semibold shadow-sm">
+                      <i data-lucide="download" class="w-4 h-4"></i> Descargar PDF
                    </button>
                </div>
             </div>
 
              <!-- Excel Raw (Disabled State Premium) -->
-            <div class="group bg-slate-50 p-8 rounded-[2rem] border border-slate-200 shadow-none relative overflow-hidden opacity-80 cursor-not-allowed">
-               <div class="relative z-10 flex flex-col h-full items-start gap-6">
-                   <div class="p-4 bg-slate-200 text-slate-400 rounded-2xl">
-                      <i data-lucide="table" class="w-8 h-8"></i>
+             <!-- Excel Raw (Disabled State Corporate) -->
+            <div class="group bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-none relative overflow-hidden opacity-60">
+               <div class="relative z-10 flex flex-col h-full items-start gap-4">
+                   <div class="flex items-center gap-4 w-full">
+                       <div class="p-3 bg-slate-200 text-slate-500 rounded-lg shrink-0">
+                          <i data-lucide="table" class="w-6 h-6"></i>
+                       </div>
+                       <div>
+                          <h3 class="text-xl font-bold text-slate-500 tracking-tight">Datos Crudos</h3>
+                          <p class="text-slate-400 text-sm mt-1">Formato Excel nativo</p>
+                       </div>
                    </div>
-                   <div>
-                      <h3 class="text-2xl font-bold text-slate-400 tracking-tight">Datos Crudos (Excel)</h3>
-                      <p class="text-slate-400 mt-2 leading-relaxed">Descarga el dataset procesado en formato Excel nativo.</p>
+                   <div class="mt-auto w-full pt-4">
+                       <button disabled class="px-4 py-2.5 bg-slate-200 text-slate-400 rounded-lg flex items-center gap-2 w-full justify-center text-sm font-semibold cursor-not-allowed">
+                          <i data-lucide="lock" class="w-4 h-4"></i> No disponible
+                       </button>
                    </div>
-                   <button disabled class="mt-auto px-6 py-3 bg-slate-200 text-slate-400 rounded-xl flex items-center gap-3 w-full justify-center font-bold tracking-wide cursor-not-allowed">
-                      <i data-lucide="lock" class="w-4 h-4"></i> Próximamente
-                   </button>
                </div>
             </div>
          </div>
@@ -237,6 +339,29 @@ export class AppShell {
       ReportService.exportGeneralRanking(data);
     });
   }
+
+  renderSettings() {
+    this.mainContent.innerHTML = '';
+    const settings = new Settings();
+    this.mainContent.appendChild(settings.render());
+  }
+
+  renderWelcome() {
+    this.mainContent.innerHTML = '';
+    const welcome = new WelcomeScreen();
+    this.mainContent.appendChild(welcome.render());
+
+    // Hide sidebar for absolute focus
+    this.sidebar.getElement().style.display = 'none';
+  }
+
+  // Override navigateTo to handle sidebar visibility
+  _checkSidebarVisibility(route) {
+    if (this.sidebar) {
+      this.sidebar.getElement().style.display = route === 'welcome' ? 'none' : 'flex';
+    }
+  }
+
 
   renderDashboard() {
     const data = store.getData(); // Filtered data for stats
@@ -252,125 +377,171 @@ export class AppShell {
     const currentFilters = store.state.filters;
 
     // --- Calculate Stats (based on filtered data) ---
-    // Calculate Averages
-    let sumGestH = 0;
-    let sumCerrH = 0;
-    let sumAHT = 0;
-    let sumNCO = 0;
-    let dist = { good: 0, mid: 0, bad: 0 };
 
+    // --- Calculate Stats (Dynamic based on Config) ---
+    // --- Calculate Stats (Dynamic based on Config) ---
+    const stats = kpiContext.getKPIs().map(config => {
+      let sum = 0;
+      let count = 0;
+
+      if (total > 0) {
+        data.forEach(d => {
+          const val = d.kpis?.[config.key];
+          if (val !== undefined && val !== null) {
+            sum += parseFloat(val);
+            count++;
+          }
+        });
+      }
+
+      const avg = count > 0 ? (sum / count) : 0;
+      const formattedValue = config.isPercent ? avg.toFixed(1) + '%' : avg.toFixed(2);
+
+      // Determine Status (Traffic Light)
+      let status = 'neutral';
+      let statusColor = 'text-slate-900';
+
+      if (count > 0) {
+        const isMin = config.type === 'min'; // Higher is better
+        // Logic: On Target (Green), Close (Orange), Bad (Red)
+        // Close defined as within Tolerance distance (default 15%)
+        const target = config.target;
+        const diff = Math.abs((avg - target) / target);
+        const isGood = isMin ? avg >= target : avg <= target;
+
+        if (isGood) {
+          status = 'success';
+          statusColor = 'text-[#15803d]'; // Green-700
+        } else if (diff < (config.warningThreshold || 0.15)) {
+          status = 'warning';
+          statusColor = 'text-[#c2410c]'; // Orange-700
+        } else {
+          status = 'critical';
+          statusColor = 'text-[#b91c1c]'; // Red-700
+        }
+      }
+
+      return {
+        ...config,
+        value: formattedValue,
+        statusColor,
+        status
+      };
+    });
+
+    // Special case for Distribution Chart (using NCO BO or Global NCO if available)
+    const ncoConfig = stats.find(s => s.key === 'ncoBO') || stats[0];
+    // Logic for Chart Distribution (kept similar but using Config target)
+    let dist = { good: 0, mid: 0, bad: 0 };
     if (total > 0) {
       data.forEach(curr => {
-        const m = curr.kpis || {};
-        sumGestH += (m.gestH || 0);
-        sumCerrH += (m.cerrH || 0);
-        sumAHT += (m.aht || 0);
-        sumNCO += (m.ncoBO || 0);
+        const val = curr.kpis?.[ncoConfig.key] || 0;
+        const target = ncoConfig.target;
 
-        let val = m.ncoBO || 0;
-        if (val >= 90) dist.good++;
-        else if (val >= 70) dist.mid++;
+        // Simplified logic matching previous chart but dynamic target
+        // Assuming standard distribution logic: >Target=Good, >Target*0.8=Mid, else Bad
+        if (val >= target) dist.good++;
+        else if (val >= target * 0.8) dist.mid++;
         else dist.bad++;
       });
     }
 
-    const avgGestH = total > 0 ? (sumGestH / total).toFixed(2) : 0;
-    const avgCerrH = total > 0 ? (sumCerrH / total).toFixed(2) : 0;
-    const avgAHT = total > 0 ? (sumAHT / total).toFixed(0) : 0;
-    const avgNCO = total > 0 ? (sumNCO / total).toFixed(1) : 0;
-
     this.mainContent.innerHTML = `
       <style>
         .dashboard-grid-force {
-          display: grid;
-          grid-template-columns: repeat(1, 1fr);
-          gap: 1rem;
-          width: 100%;
-        }
-        @media (min-width: 768px) { .dashboard-grid-force { grid-template-columns: repeat(2, 1fr); } }
-        @media (min-width: 1024px) { .dashboard-grid-force { grid-template-columns: repeat(4, 1fr) !important; } }
+      display: block;
+      width: 100%;
+    }
       </style>
       <div class="w-full h-full overflow-y-auto p-6 animate-fade-in" style="width: 100% !important;">
-          <header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-                <h2 class="text-3xl font-black text-slate-800 tracking-tight">Dashboard Operativo</h2>
-                <div class="flex items-center gap-2 mt-1">
-                   <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                   <p class="text-slate-500 text-sm font-medium">Visión global del rendimiento</p>
-                </div>
+        <!-- Nexus Dashboard v2.1 -->
+        <header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 class="text-3xl font-black text-slate-800 tracking-tight">Dashboard Operativo</h2>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <p class="text-slate-500 text-sm font-medium">Visión global del rendimiento</p>
             </div>
-            
-            <div class="flex flex-wrap items-center gap-3">
-               <!-- TM Selector -->
-               <div class="relative group">
-                  <select id="tmSelector" class="appearance-none bg-white pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm transition-all cursor-pointer hover:border-indigo-300">
-                      <option value="all">Todos los Equipos</option>
-                      ${tms.map(tm => `<option value="${tm}" ${currentFilters.tm === tm ? 'selected' : ''}>${tm}</option>`).join('')}
-                  </select>
-                  <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                     <i data-lucide="chevron-down" class="w-4 h-4"></i>
+          </div>
+
+            <div class="flex flex-wrap items-center gap-4">
+               <!-- TM Selector (Enhanced) -->
+               <div class="relative group min-w-[220px]">
+                  <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Equipo / TM</label>
+                  <div class="relative">
+                      <select id="tmSelector" class="appearance-none w-full bg-white pl-4 pr-10 py-3 rounded-lg border border-slate-200 text-slate-700 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 shadow-sm transition-all cursor-pointer hover:border-indigo-300">
+                          <option value="all">Todos los Equipos</option>
+                          ${tms.map(tm => `<option value="${escapeHTML(tm)}" ${currentFilters.tm === tm ? 'selected' : ''}>${escapeHTML(tm)}</option>`).join('')}
+                      </select>
+                      <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-indigo-500 transition-colors">
+                         <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                      </div>
                   </div>
                </div>
 
-               <!-- Segment Selector -->
-               <div class="relative group">
-                  <select id="segmentSelector" class="appearance-none bg-white pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm transition-all cursor-pointer hover:border-indigo-300">
-                      <option value="all">Todos los Segmentos</option>
-                       ${uniqueSegments.map(s => `<option value="${s}" ${currentFilters.segment === s ? 'selected' : ''}>${s}</option>`).join('')}
-                  </select>
-                  <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                     <i data-lucide="chevron-down" class="w-4 h-4"></i>
+               <!-- Segment Selector (Enhanced) -->
+               <div class="relative group min-w-[220px]">
+                  <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Segmento</label>
+                  <div class="relative">
+                      <select id="segmentSelector" class="appearance-none w-full bg-white pl-4 pr-10 py-3 rounded-lg border border-slate-200 text-slate-700 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 shadow-sm transition-all cursor-pointer hover:border-indigo-300">
+                          <option value="all">Todos los Segmentos</option>
+                          ${uniqueSegments.map(s => `<option value="${escapeHTML(s)}" ${currentFilters.segment === s ? 'selected' : ''}>${escapeHTML(s)}</option>`).join('')}
+                      </select>
+                      <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-indigo-500 transition-colors">
+                         <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                      </div>
                   </div>
                </div>
 
-               ${total > 0 ? `<div class="bg-white px-3 py-2.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+            ${total > 0 ? `<div class="bg-white px-3 py-2.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
                    <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
                    <span class="text-sm font-bold text-slate-600">${total} <span class="text-xs font-normal text-slate-400">agentes</span></span>
                </div>` : ''}
-            </div>
-          </header>
-          
-          <div class="dashboard-grid-force gap-4 mb-8">
-            ${this.createStatCard('Promedio Gest/H', avgGestH, 'activity', 'indigo')}
-            ${this.createStatCard('Promedio Cerr/H', avgCerrH, 'check-circle', 'emerald')}
-            ${this.createStatCard('AHT Promedio', avgAHT + 's', 'clock', 'amber')}
-            ${this.createStatCard('NCO BO% Global', avgNCO + '%', 'bar-chart-2', 'rose')}
           </div>
+        </header>
+
+        <!-- Nexus Stats Grid (Cards) -->
+        <div class="px-6 mb-8">
+           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+             ${stats.map(stat => this.createStatCardV2(stat)).join('')}
+           </div>
+        </div>
+
+        <div class="px-6 pb-8 block w-full gap-6">
 
           ${total === 0 ? this.renderEmpty() : `
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <!-- Distribution Chart -->
-              <div class="lg:col-span-2 card bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-col">
-                 <div class="flex justify-between items-start mb-4">
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-800">Distribución de Rendimiento</h3>
-                    </div>
+              <!-- Distribution Chart (Flat Frame) -->
+              <div class="lg:col-span-2 bg-white rounded-lg border border-slate-200 p-5 flex flex-col">
+                 <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-sm font-semibold text-slate-900 uppercase tracking-wide">Distribución de Rendimiento</h3>
+                    <button id="chartConfigBtn" class="text-slate-400 hover:text-indigo-600"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
                  </div>
                  <div class="relative w-full h-64" id="chartContainer"></div>
               </div>
 
                <!-- Summary Card -->
-               <div class="card bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-col">
-                <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <i data-lucide="layers" class="w-5 h-5 text-indigo-500"></i>
+               <div class="card bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+                <h3 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2 pb-3 border-b border-slate-100">
+                    <i data-lucide="layers" class="w-4 h-4 text-slate-500"></i>
                     Resumen de Carga
                 </h3>
                  <div class="space-y-3 flex-1">
-                   <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                     <span class="font-bold text-slate-600 text-sm">Agentes Mostrados</span>
-                     <span class="font-black text-xl text-slate-800">${total}</span>
+                   <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                     <span class="font-semibold text-slate-600 text-sm">Agentes Mostrados</span>
+                     <span class="font-bold text-lg text-slate-900">${total}</span>
                    </div>
-                   <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                     <span class="font-bold text-slate-600 text-sm">Equipos Filtrados</span>
-                     <span class="font-black text-xl text-slate-800">${new Set(data.map(d => d.supervisor)).size}</span>
+                   <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                     <span class="font-semibold text-slate-600 text-sm">Equipos Filtrados</span>
+                     <span class="font-bold text-lg text-slate-900">${new Set(data.map(d => d.supervisor)).size}</span>
                    </div>
-                    <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 mt-2">
-                        <p class="text-[10px] text-indigo-600 font-medium leading-relaxed">
+                    <div class="p-2.5 bg-indigo-50/30 rounded-lg border border-indigo-100 mt-2">
+                        <p class="text-[10px] text-indigo-700 font-medium leading-relaxed">
                             <span class="font-bold">Filtros Activos:</span> ${currentFilters.tm !== 'all' ? 'TM Personalizado' : 'Todos'} | ${currentFilters.segment !== 'all' ? 'Segmento Personalizado' : 'Todos'}
                         </p>
                    </div>
                  </div>
-                 <button id="dashExportBtn" class="w-full mt-4 py-2.5 text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 font-bold rounded-lg transition-all text-sm flex items-center justify-center gap-2">
+                 <button id="dashExportBtn" class="w-full mt-4 py-2 text-indigo-700 hover:text-white hover:bg-indigo-700 border border-indigo-200 hover:border-indigo-700 font-bold rounded-lg transition-all text-sm flex items-center justify-center gap-2">
                     <i data-lucide="file-bar-chart" class="w-4 h-4"></i> Ir a Reportes
                  </button>
               </div>
@@ -396,57 +567,441 @@ export class AppShell {
     }
 
     if (total > 0) {
-      setTimeout(() => this.renderChart(dist), 0);
+      setTimeout(() => this.renderChart(data), 0);
       this.mainContent.querySelector('#dashExportBtn').addEventListener('click', () => {
         this.navigateTo('reports');
       });
+      this.mainContent.querySelector('#chartConfigBtn')?.addEventListener('click', () => this.toggleChartConfig());
     }
     this.refreshIcons();
   }
 
-  renderChart(dist) {
-    this.chartComponent.render(document.getElementById('chartContainer'), {
-      type: 'doughnut',
-      data: {
-        labels: ['Objetivo (>90%)', 'Seguimiento (70-90%)', 'Crítico (<70%)'],
-        datasets: [{
-          data: [dist.good, dist.mid, dist.bad],
-          backgroundColor: ['#10b981', '#f59e0b', '#f43f5e'],
-          borderWidth: 0,
-          hoverOffset: 20
-        }]
-      },
-      options: {
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              usePointStyle: true,
-              padding: 20,
-              font: { family: "'Outfit', sans-serif", size: 12 }
-            }
-          }
-        },
-        cutout: '75%',
-        layout: { padding: 20 }
+  renderChart(data) {
+    const container = document.getElementById('chartContainer');
+    if (!container || !data || data.length === 0) return;
+
+    // Clear previous chart
+    container.innerHTML = '';
+
+    // Setup D3 Dimensions with Safe Fallbacks
+    const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+    const containerRect = container.getBoundingClientRect();
+    const safeW = containerRect.width || container.clientWidth || 600;
+    const safeH = containerRect.height || container.clientHeight || 300;
+
+    const width = Math.max(200, safeW - margin.left - margin.right);
+    const height = Math.max(150, safeH - margin.top - margin.bottom);
+
+    const svg = d3.select(container)
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // --- Dynamic Config Loading ---
+    let config;
+    if (this.activeChartConfig === 'custom' && this.customConfig) {
+      config = this.customConfig;
+    } else {
+      config = this.chartConfigs[this.activeChartConfig || 'performance'];
+    }
+
+    // Filter and Map Data based on Config
+    const plotData = data.filter(d =>
+      d.kpis &&
+      !isNaN(parseFloat(d.kpis[config.xKey])) &&
+      !isNaN(parseFloat(d.kpis[config.yKey])) &&
+      parseFloat(d.kpis[config.xKey]) !== 0
+    ).map(d => ({
+      id: d.id,
+      name: d.agent,
+      xVal: parseFloat(d.kpis[config.xKey]),
+      yVal: parseFloat(d.kpis[config.yKey]),
+      zVal: parseFloat(d.kpis[config.zKey] || 1)
+    }));
+
+    // Scales
+    const xMax = d3.max(plotData, d => d.xVal) || 100;
+    const x = d3.scaleLinear()
+      .domain([0, xMax * 1.1])
+      .range([0, width]);
+
+    const yMax = d3.max(plotData, d => d.yVal) || 100;
+    const y = d3.scaleLinear()
+      .domain([0, yMax * 1.1])
+      .range([height, 0]);
+
+    const z = d3.scaleSqrt()
+      .domain([0, d3.max(plotData, d => d.zVal) || 10])
+      .range([3, 15]);
+
+    // --- Zones (Quadrants) ---
+    let zoneX = 0, zoneY = 0, zoneW = 0, zoneH = 0;
+
+    // Check Config Type for Zone Logic
+    // Default Performance: xTarget is Max (340 AHT), yTarget is Min (85 NCO) -> Success is Top Left
+    // Efficiency: xTarget (2.5 Gest) Min, yTarget (1.8 Cerr) Min -> Success is Top Right
+
+    if (config.quadrant === 'topLeft') {
+      zoneX = 0;
+      zoneY = 0;
+      zoneW = x(config.xTarget);
+      zoneH = y(config.yTarget); // From Y-Target UP to 0 in SVG coords
+      if (config.xInverted) {
+        // If X is inverted (like AHT where lower is better), but usually charts go 0->Max.
+        // If target is 340, and we want < 340, then rect is 0 to x(340).
+      }
+    } else {
+      // Top Right (High x, High y)
+      // Rect from x(target) to width?
+      zoneX = x(config.xTarget);
+      zoneY = 0;
+      zoneW = width - x(config.xTarget);
+      zoneH = y(config.yTarget);
+    }
+
+    // Safety check for weird target values not blowing up SVG
+    if (zoneW < 0) zoneW = 0;
+    if (zoneH < 0) zoneH = 0;
+
+    // Draw Success Zone
+    svg.append("rect")
+      .attr("x", zoneX)
+      .attr("y", zoneY)
+      .attr("width", zoneW)
+      .attr("height", zoneH)
+      .attr("fill", "#10b981")
+      .attr("opacity", 0.05);
+
+    // Reference Lines (Targets)
+    svg.append("line")
+      .attr("x1", x(config.xTarget))
+      .attr("x2", x(config.xTarget))
+      .attr("y1", 0)
+      .attr("y2", height)
+      .attr("stroke", "#94a3b8")
+      .attr("stroke-dasharray", "4")
+      .attr("opacity", 0.5);
+
+    svg.append("line")
+      .attr("x1", 0)
+      .attr("x2", width)
+      .attr("y1", y(config.yTarget))
+      .attr("y2", y(config.yTarget))
+      .attr("stroke", "#94a3b8")
+      .attr("stroke-dasharray", "4")
+      .attr("opacity", 0.5);
+
+    // Axes
+    svg.append("g")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x).ticks(5))
+      .attr("font-family", "Inter, sans-serif")
+      .attr("color", "#64748b");
+
+    svg.append("g")
+      .call(d3.axisLeft(y).ticks(5))
+      .attr("font-family", "Inter, sans-serif")
+      .attr("color", "#64748b");
+
+    // Axis Labels
+    svg.append("text")
+      .attr("text-anchor", "end")
+      .attr("x", width)
+      .attr("y", height + 35)
+      .text(config.xLabel)
+      .attr("font-size", "10px")
+      .attr("fill", "#64748b")
+      .attr("font-weight", "bold");
+
+    svg.append("text")
+      .attr("text-anchor", "end")
+      .attr("transform", "rotate(-90)")
+      .attr("y", -35)
+      .attr("x", 0)
+      .text(config.yLabel)
+      .attr("font-size", "10px")
+      .attr("fill", "#64748b")
+      .attr("font-weight", "bold");
+
+    // Tooltip
+    d3.select(container).selectAll('.chart-tooltip').remove();
+
+    const tooltip = d3.select(container)
+      .append("div")
+      .style("opacity", 0)
+      .style("position", "absolute")
+      .style("background-color", "#1e293b")
+      .style("color", "#f8fafc")
+      .style("padding", "12px")
+      .style("border-radius", "8px")
+      .style("pointer-events", "none")
+      .style("z-index", "100")
+      .style("box-shadow", "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)")
+      .style("border", "1px solid #334155")
+      .style("min-width", "160px")
+      .attr("class", "chart-tooltip");
+
+    // Bubbles
+    svg.append('g')
+      .selectAll("circle")
+      .data(plotData)
+      .join("circle")
+      .attr("cx", d => x(d.xVal))
+      .attr("cy", d => y(d.yVal))
+      .attr("r", d => z(d.zVal))
+      .style("fill", d => {
+        // Dynamic Color Logic based on Quadrant
+        let goodX = d.xVal <= config.xTarget;
+        if (!config.xInverted) goodX = d.xVal >= config.xTarget;
+
+        let goodY = d.yVal >= config.yTarget;
+
+        // Strict Logic for colors
+        if (goodX && goodY) return "#10b981"; // Success
+        if (!goodX && !goodY) return "#f43f5e"; // Critical
+        return "#f59e0b"; // Warning
+      })
+      .style("opacity", 0.7)
+      .attr("stroke", "white")
+      .style("stroke-width", "1.5px")
+      .on("mouseover", function (event, d) {
+        d3.select(this)
+          .transition().duration(200)
+          .style("opacity", 1)
+          .attr("r", z(d.zVal) + 4)
+          .style("stroke", "#6366f1")
+          .style("stroke-width", "2px");
+
+        tooltip.transition().duration(200).style("opacity", 1);
+        tooltip.html(`
+            <div style="font-weight: 700; margin-bottom: 4px; border-bottom: 1px solid #475569; padding-bottom: 4px;">${d.name}</div>
+            <div style="display: grid; grid-template-columns: auto auto; gap: 4px 12px; font-size: 11px;">
+               <span style="color: #94a3b8;">${config.xLabel}:</span> <span style="text-align: right; font-family: monospace;">${d.xVal.toFixed(1)}</span>
+               <span style="color: #94a3b8;">${config.yLabel}:</span> <span style="text-align: right; font-family: monospace;">${d.yVal.toFixed(1)}</span>
+               <span style="color: #94a3b8;">${config.zLabel}:</span> <span style="text-align: right; font-family: monospace;">${d.zVal.toFixed(1)}</span>
+            </div>
+         `)
+
+        const [mx, my] = d3.pointer(event, container);
+
+        // Smart Tooltip Positioning
+        const tooltipHeight = 85;
+        // Flip Top/Bottom
+        if (my > height * 0.6) {
+          tooltip.style("top", (my - tooltipHeight - 15) + "px");
+        } else {
+          tooltip.style("top", (my + 20) + "px");
+        }
+
+        // Flip Right/Left
+        if (mx > width * 0.7) {
+          tooltip.style("left", (mx - 170) + "px");
+        } else {
+          tooltip.style("left", (mx + 20) + "px");
+        }
+
+      })
+      .on("mousemove", function (event) {
+        const [mx, my] = d3.pointer(event, container);
+        const tooltipHeight = 85;
+
+        if (my > height * 0.6) {
+          tooltip.style("top", (my - tooltipHeight - 15) + "px");
+        } else {
+          tooltip.style("top", (my + 20) + "px");
+        }
+
+        if (mx > width * 0.7) {
+          tooltip.style("left", (mx - 170) + "px");
+        } else {
+          tooltip.style("left", (mx + 20) + "px");
+        }
+      })
+      .on("mouseout", function () {
+        d3.select(this)
+          .transition().duration(200)
+          .style("opacity", 0.7)
+          .attr("r", z(d3.select(this).datum().zVal))
+          .style("stroke", "white")
+          .style("stroke-width", "1.5px");
+        tooltip.transition().duration(200).style("opacity", 0);
+      })
+      .on("click", (event, d) => {
+        // Fix: Correct usage of handleViewAgent
+        this.handleViewAgent(d.id);
+      });
+
+    // Add Clipping Path to Parent SVG (select the <g>'s parent)
+    d3.select(container).select("svg").insert("defs", ":first-child")
+      .append("clipPath")
+      .attr("id", "chart-clip")
+      .append("rect")
+      .attr("width", width)
+      .attr("height", height);
+
+    // Apply to the main group
+    svg.attr("clip-path", "url(#chart-clip)");
+  }
+
+  // Configuration Modal Logic
+  toggleChartConfig() {
+    const existing = document.getElementById('chartConfigMenu');
+    if (existing) {
+      existing.remove();
+      return;
+    }
+
+    const btn = document.getElementById('chartConfigBtn');
+    if (!btn) return;
+
+    const options = [
+      { key: 'gestH', label: 'GEST/H' },
+      { key: 'cerrH', label: 'CERR/H' },
+      { key: 'ncoBO', label: 'NCO BO%' },
+      { key: 'aht', label: 'AHT' },
+      { key: 'tipif', label: 'TIPIF %' },
+      { key: 'transfer', label: 'TRANS %' },
+      { key: 'nps', label: 'NPS' },
+      { key: 'ncp', label: 'NCP' },
+      { key: 'ncoCall', label: 'NCO LLAM%' }
+    ];
+
+    const menu = document.createElement('div');
+    menu.id = 'chartConfigMenu';
+    menu.className = 'absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 animate-fade-in-up';
+
+    document.body.appendChild(menu);
+    const rect = btn.getBoundingClientRect();
+    menu.style.position = 'absolute';
+    menu.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+    menu.style.left = (rect.right + window.scrollX - 288) + 'px';
+
+    menu.innerHTML = `
+        <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest">Personalizar Gráfico</h4>
+            <button id="closeChartConfig" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        
+        <div class="space-y-4">
+            <!-- Quick Presets -->
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">Vistas Rápidas</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button class="preset-btn px-2 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-[10px] font-bold rounded border border-slate-200 transition-colors" data-preset="performance">Rendimiento</button>
+                    <button class="preset-btn px-2 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-[10px] font-bold rounded border border-slate-200 transition-colors" data-preset="efficiency">Eficiencia</button>
+                    <button class="preset-btn px-2 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-[10px] font-bold rounded border border-slate-200 transition-colors" data-preset="quality">Calidad</button>
+                </div>
+            </div>
+            
+            <div class="border-t border-slate-100 pt-3">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">Configuración Manual</label>
+                <div class="space-y-2">
+                    <div>
+                        <span class="text-[10px] text-slate-500 block mb-1">Eje X</span>
+                        <select id="xAxisSelect" class="w-full text-xs border-slate-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-slate-700 bg-slate-50 py-1.5 px-2">
+                            ${options.map(o => `<option value="${o.key}" ${this.activeChartConfig?.xKey === o.key || (this.chartConfigs[this.activeChartConfig]?.xKey === o.key) ? 'selected' : ''}>${o.label}</option>`).join('')}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <span class="text-[10px] text-slate-500 block mb-1">Eje Y</span>
+                        <select id="yAxisSelect" class="w-full text-xs border-slate-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-slate-700 bg-slate-50 py-1.5 px-2">
+                             ${options.map(o => `<option value="${o.key}" ${this.activeChartConfig?.yKey === o.key || (this.chartConfigs[this.activeChartConfig]?.yKey === o.key) ? 'selected' : ''}>${o.label}</option>`).join('')}
+                        </select>
+                    </div>
+                     
+                     <div>
+                        <span class="text-[10px] text-slate-500 block mb-1">Tamaño Burbuja</span>
+                        <select id="zAxisSelect" class="w-full text-xs border-slate-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-slate-700 bg-slate-50 py-1.5 px-2">
+                             <option value="gestH">GEST/H</option>
+                             <option value="calls">Llamadas</option>
+                             <option value="aht">AHT</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button id="applyChartConfig" class="w-full mt-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg text-xs transition-colors shadow-sm">
+                    Aplicar Manualmente
+                </button>
+            </div>
+        </div>
+      `;
+
+    menu.querySelector('#closeChartConfig').onclick = () => menu.remove();
+
+    // Handle Presets
+    menu.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        const preset = e.target.getAttribute('data-preset');
+        this.setChartConfig(preset);
+        menu.remove();
       }
     });
+
+    menu.querySelector('#applyChartConfig').onclick = () => {
+      const xKey = menu.querySelector('#xAxisSelect').value;
+      const yKey = menu.querySelector('#yAxisSelect').value;
+      const zKey = menu.querySelector('#zAxisSelect').value;
+
+      this.applyCustomConfig(xKey, yKey, zKey);
+      menu.remove();
+    };
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  applyCustomConfig(xKey, yKey, zKey) {
+    const options = [
+      { key: 'gestH', label: 'GEST/H', target: 2.5 },
+      { key: 'cerrH', label: 'CERR/H', target: 1.8 },
+      { key: 'ncoBO', label: 'NCO BO%', target: 85 },
+      { key: 'aht', label: 'AHT', target: 340, inverted: true },
+      { key: 'tipif', label: 'TIPIF %', target: 90 },
+      { key: 'transfer', label: 'TRANS %', target: 15, inverted: true },
+      { key: 'nps', label: 'NPS', target: 30 },
+      { key: 'ncp', label: 'NCP', target: 9, inverted: true },
+      { key: 'ncoCall', label: 'NCO LLAM%', target: 85 }
+    ];
+
+    const xOpt = options.find(o => o.key === xKey);
+    const yOpt = options.find(o => o.key === yKey);
+    const zOpt = options.find(o => o.key === zKey);
+
+    this.customConfig = {
+      id: 'custom',
+      label: 'Personalizado',
+      xKey: xKey, xLabel: xOpt?.label || xKey, xTarget: xOpt?.target || 0, xInverted: xOpt?.inverted,
+      yKey: yKey, yLabel: yOpt?.label || yKey, yTarget: yOpt?.target || 0,
+      zKey: zKey, zLabel: zOpt?.label || zKey,
+      quadrant: 'custom'
+    };
+
+    this.activeChartConfig = 'custom';
+    this.renderChart(store.getData());
+  }
+
+  setChartConfig(configId) {
+    this.activeChartConfig = configId;
+    document.getElementById('chartConfigMenu')?.remove();
+    const data = store.getData();
+    this.renderChart(data);
   }
 
   renderAgents() {
     if (!this.agentListComponent) {
-      this.mainContent.innerHTML = '<div class="w-full h-full"></div>'; // Wrapper to keep ref
+      this.mainContent.innerHTML = '<div class="w-full h-full"></div>';
       this.agentListComponent = new AgentList(this.mainContent.firstChild);
     }
-    // Always create new container if empty or reused poorly, but here we assume it works.
-    // Actually renderAgents usually called when route changes.
-    // If not data, show empty handled by AgentList or here?
-    // Let's delegate to AgentList logic which we improved.
-    if (!this.agentListComponent.container) {
+
+    // Check if container is still valid and attached
+    if (!this.agentListComponent.container || !this.mainContent.contains(this.agentListComponent.container)) {
       this.mainContent.innerHTML = '<div class="w-full h-full"></div>';
       this.agentListComponent.container = this.mainContent.firstChild;
+      this.agentListComponent.isInitialized = false; // Force re-render of structure
     }
+
     this.agentListComponent.setData(store.getData());
   }
 
@@ -474,25 +1029,75 @@ export class AppShell {
 
   renderPlaceholder(t) { this.mainContent.innerHTML = `<div class="h-full flex items-center justify-center text-slate-300 text-3xl font-black uppercase tracking-widest">${t}</div>`; }
 
-  createStatCard(title, value, icon, colorName) {
-    const colors = {
-      indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-l-indigo-500' },
-      emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-l-emerald-500' },
-      amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-l-amber-500' },
-      rose: { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-l-rose-500' }
-    };
-    const c = colors[colorName] || colors.indigo;
+  createStatCardV2(stat) {
+    const { label, value, statusColor, target, isPercent, type, icon } = stat;
+
+    // Gradient Background based on status (subtle)
+    let cardBg = 'bg-white';
+    let iconColor = 'text-slate-400';
+    let iconBg = 'bg-slate-50';
+    let progressColor = 'bg-slate-200';
+
+    if (stat.status === 'success') {
+      iconColor = 'text-emerald-600';
+      iconBg = 'bg-emerald-50';
+      progressColor = 'bg-emerald-500';
+    } else if (stat.status === 'warning') {
+      iconColor = 'text-amber-600';
+      iconBg = 'bg-amber-50';
+      progressColor = 'bg-amber-500';
+    } else if (stat.status === 'critical') {
+      iconColor = 'text-rose-600';
+      iconBg = 'bg-rose-50';
+      progressColor = 'bg-rose-500';
+    }
+
+    const cleanTarget = target + (isPercent ? '%' : '');
+    // Calculate progress bar width (clamped 0-100)
+    let percent = 0;
+    const numVal = parseFloat(value);
+
+    if (type === 'min') {
+      percent = Math.min((numVal / target) * 100, 100);
+    } else {
+      // For max (e.g. AHT), logic is inverted visually? 
+      // Let's just normalize: if target is 300, and val is 150, that's 50% "used".
+      percent = Math.min((numVal / (target * 1.5)) * 100, 100);
+    }
 
     return `
-      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-[4px] ${c.border} flex items-center justify-between hover:shadow-md transition-shadow">
-        <div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">${title}</p>
-            <h4 class="text-2xl font-black text-slate-800 tracking-tight">${value}</h4>
-        </div>
-        <div class="w-10 h-10 rounded-lg ${c.bg} flex items-center justify-center">
-             <i data-lucide="${icon}" class="w-5 h-5 ${c.text}"></i>
-        </div>
-      </div>`;
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md transition-all group relative overflow-hidden">
+         <div class="flex justify-between items-start mb-2">
+             <div class="w-10 h-10 rounded-lg ${iconBg} flex items-center justify-center border border-white shadow-sm">
+                <i data-lucide="${icon || 'activity'}" class="w-5 h-5 ${iconColor}"></i>
+             </div>
+             ${stat.status !== 'neutral' ? `
+                <span class="flex h-2.5 w-2.5">
+                  <span class="group-hover:animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${progressColor}"></span>
+                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 ${progressColor}"></span>
+                </span>
+             ` : ''}
+         </div>
+         
+         <div>
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">${label}</p>
+            <div class="flex items-baseline gap-2">
+                <h4 class="text-2xl font-black text-slate-800 tracking-tight leading-none">${value}</h4>
+            </div>
+         </div>
+
+         <!-- Progress Bar Context -->
+         <div class="mt-3">
+            <div class="flex justify-between text-[10px] font-medium text-slate-400 mb-1">
+                <span>Progreso</span>
+                <span>Meta: <span class="text-slate-600 font-bold">${cleanTarget}</span></span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div class="${progressColor} h-1.5 rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+            </div>
+         </div>
+      </div>
+    `;
   }
 
   refreshIcons() { createIcons({ icons, nameAttr: 'data-lucide' }); }

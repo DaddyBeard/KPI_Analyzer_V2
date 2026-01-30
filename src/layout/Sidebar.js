@@ -6,8 +6,8 @@ const NAV_CONFIG = [
   { id: 'dashboard', icon: 'layout-dashboard', label: 'Dashboard' },
   { id: 'agents', icon: 'users', label: 'Agentes' },
   { id: 'reports', icon: 'file-text', label: 'Informes' },
-  { id: 'calendar', icon: 'calendar', label: 'Calendario' }, // Inspired by reference
-  { id: 'activity', icon: 'activity', label: 'Actividad' }   // Inspired by reference
+
+  { id: 'settings', icon: 'settings', label: 'Configuración' }
 ];
 
 export class Sidebar {
@@ -141,17 +141,26 @@ export class Sidebar {
   renderFooter() {
     return `
       <div class="sidebar-footer">
-        <button class="user-profile">
-          <div class="avatar">JS</div>
-          <div class="user-info">
-            <p class="user-name">Jason S.</p>
-            <p class="user-role">Admin Workspace</p>
+        <button id="help-btn" class="user-profile group" title="Ayuda y Soporte">
+          <div class="avatar bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+            <i data-lucide="help-circle" class="w-5 h-5"></i>
           </div>
-          <i data-lucide="more-vertical" class="w-4 h-4 text-slate-500 more-icon ml-auto"></i>
+          <div class="user-info">
+            <p class="user-name text-sm font-medium">Ayuda</p>
+            <p class="user-role text-xs text-slate-400">Soporte Offline</p>
+          </div>
+        </button>
+
+        <button id="logout-btn" class="logout-item group mt-2" title="Finalizar Sesión y Limpiar Datos">
+           <div class="logout-icon text-slate-400 group-hover:text-rose-600 transition-colors">
+              <i data-lucide="log-out" class="w-5 h-5"></i>
+           </div>
+           <span class="text-xs font-bold text-slate-400 group-hover:text-rose-600 transition-colors">Finalizar Sesión</span>
         </button>
       </div>
     `;
   }
+
 
   setupEventListeners() {
     // Toggle
@@ -185,6 +194,26 @@ export class Sidebar {
     this.bindAction('import', () => fileInput.click());
     this.bindAction('import-folder', () => folderInput.click());
     this.bindAction('load-demo', () => window.dispatchEvent(new CustomEvent('load-demo')));
+
+    // Help Action (Generic placeholder for now)
+    const helpBtn = this.element.querySelector('#help-btn');
+    if (helpBtn) {
+      helpBtn.addEventListener('click', () => {
+        alert('Módulo de Ayuda: Próximamente disponible.');
+      });
+    }
+
+    // Logout Action
+    const logoutBtn = this.element.querySelector('#logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        if (confirm('¿Estás seguro de que deseas finalizar la sesión? Se borrarán todos los datos cargados del navegador para mayor seguridad.')) {
+          await store.clear();
+          window.dispatchEvent(new CustomEvent('navigate', { detail: { route: 'welcome' } }));
+        }
+      });
+    }
+
 
     // Inputs Change
     fileInput.addEventListener('change', (e) => {

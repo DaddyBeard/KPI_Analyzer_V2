@@ -6,6 +6,12 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>KPI Analyzer V2</title>
+    <!-- SECURITY: Content Security Policy to enforce OFFLINE usage. 
+         connect-src 'self' ... blocks requests to the internet, but allows localhost for the App and Vite Hot-Reload.
+         script-src 'self' 'unsafe-inline' 'unsafe-eval' allows local scripts (Vite needs unsafe-eval for dev source maps).
+    -->
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; connect-src 'self' ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:*; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;">
 </head>
 
 <body>

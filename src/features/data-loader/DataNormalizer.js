@@ -1,5 +1,26 @@
 
 export class DataNormalizer {
+    static validateString(val) {
+        if (!val) return val;
+        const str = String(val);
+        // BLOCK SCRIPTS: If it contains tags, return safe placeholder or null
+        if (/<[^>]*>/g.test(str)) {
+            console.warn('Potential XSS detected in data:', str);
+            return '[CONTENIDO BLOQUEADO]';
+        }
+        return str;
+    }
+
+    static validateID(val) {
+        if (!val) return val;
+        const str = String(val).trim();
+        // IDs should be relatively short and usually alphanumeric. 
+        // If longer than 50 chars, suspicious.
+        if (str.length > 50) return null;
+        if (/<[^>]*>/g.test(str)) return null;
+        return str;
+    }
+
     static parseExcelDate(val) {
         if (!val) return val;
         // Check if it's an Excel serial number (approx range for recent years: 40000 - 50000)
@@ -43,10 +64,10 @@ export class DataNormalizer {
                 cerrTotal: this.parseNumber(row[mapping.cerrTotal])
             };
 
-            const agentName = row[mapping.name] || row[mapping.agent] || 'Desconocido';
+            const agentName = this.validateString(row[mapping.name] || row[mapping.agent] || 'Desconocido');
 
             // Try to find a valid ID
-            const id = row[mapping.id] || row[mapping.idBoost] || row[mapping.idEmpl];
+            const id = this.validateID(row[mapping.id] || row[mapping.idBoost] || row[mapping.idEmpl]);
 
             // Skip rows with no valid Name AND no valid ID (likely empty)
             if (agentName === 'Desconocido' && !id) return null;

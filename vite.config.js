@@ -4,6 +4,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 import path from 'path';
 
 export default defineConfig({
+    base: './',
     plugins: [viteSingleFile()],
     resolve: {
         alias: {

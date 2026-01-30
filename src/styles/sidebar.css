@@ -271,6 +271,44 @@
     justify-content: center;
 }
 
+/* Logout Item */
+.logout-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    width: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logout-item:hover {
+    background-color: rgba(225, 29, 72, 0.1);
+    /* rose-600 with opacity */
+}
+
+.logout-icon {
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sidebar-container.collapsed .logout-item {
+    justify-content: center;
+    padding: 0.75rem 0;
+}
+
+.sidebar-container.collapsed .logout-item span {
+    display: none;
+}
+
+
 /* --- LAYOUT OVERRIDES (Force Full Width) --- */
 .force-full-width {
     width: 100% !important;
