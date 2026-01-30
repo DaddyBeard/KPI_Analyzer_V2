@@ -79,6 +79,17 @@ export const AgentHistory = {
                    <th class="px-4 py-3 font-bold sticky left-0 bg-white z-20 border-r border-slate-100 shadow-sm min-w-[150px]">
                       INDICADOR
                    </th>
+                   <!-- Evolution Column (only if we have 2+ periods) -->
+                   ${periods.length >= 2 ? `
+                   <th class="px-4 py-3 font-bold text-center whitespace-nowrap min-w-[100px] bg-indigo-50/50 border-r border-indigo-100">
+                     <div class="flex flex-col items-center">
+                       <span class="text-indigo-700">EVOLUCIÓN</span>
+                       <span class="text-[9px] text-indigo-400 font-normal mt-1">
+                         ${periods[0].period} vs ${periods[1].period}
+                       </span>
+                     </div>
+                   </th>
+                   ` : ''}
                    <!-- Period Columns -->
                    ${periods.map(p => `
                      <th class="px-4 py-3 font-bold text-center whitespace-nowrap min-w-[100px]">
@@ -104,34 +115,71 @@ export const AgentHistory = {
                             </div>
                         </td>
                         
+                        <!-- Evolution Cell (only if we have 2+ periods) -->
+                        ${periods.length >= 2 ? (() => {
+          const latestVal = periods[0].kpis ? periods[0].kpis[kpi.key] : null;
+          const previousVal = periods[1].kpis ? periods[1].kpis[kpi.key] : null;
+
+          if (latestVal === null || latestVal === undefined || previousVal === null || previousVal === undefined) {
+            return '<td class="px-4 py-3 text-center text-slate-300 bg-slate-50/30">-</td>';
+          }
+
+          const latest = parseFloat(String(latestVal).replace('%', '').replace(',', '.'));
+          const previous = parseFloat(String(previousVal).replace('%', '').replace(',', '.'));
+
+          if (isNaN(latest) || isNaN(previous)) {
+            return '<td class="px-4 py-3 text-center text-slate-300 bg-slate-50/30">-</td>';
+          }
+
+          const diff = latest - previous;
+          const isImprovement = kpi.type === 'min' ? diff > 0 : diff < 0;
+          const arrow = isImprovement ? '↑' : (diff === 0 ? '=' : '↓');
+          const colorClass = isImprovement
+            ? 'text-emerald-600 bg-emerald-50/50 ring-1 ring-emerald-100'
+            : (diff === 0 ? 'text-slate-500 bg-slate-50' : 'text-rose-500 bg-rose-50/50 ring-1 ring-rose-100');
+
+          const displayDiff = kpi.isPercent ? diff.toFixed(1) + '%' : diff.toFixed(2);
+
+          return `
+                          <td class="px-4 py-3 text-center bg-indigo-50/20">
+                            <div class="flex items-center justify-center gap-1">
+                              <span class="${colorClass} px-2 py-1 rounded font-bold text-xs inline-flex items-center gap-1">
+                                <span class="text-base">${arrow}</span>
+                                ${diff > 0 ? '+' : ''}${displayDiff}
+                              </span>
+                            </div>
+                          </td>
+                        `;
+        })() : ''}
+                        
                         <!-- KPI Values per Period -->
                         ${periods.map(record => {
-        const val = record.kpis ? record.kpis[kpi.key] : null;
+          const val = record.kpis ? record.kpis[kpi.key] : null;
 
-        if (val === null || val === undefined) {
-          return '<td class="px-4 py-3 text-center text-slate-300">-</td>';
-        }
+          if (val === null || val === undefined) {
+            return '<td class="px-4 py-3 text-center text-slate-300">-</td>';
+          }
 
-        const numVal = parseFloat(String(val).replace('%', '').replace(',', '.'));
-        const displayVal = kpi.isPercent ? numVal.toFixed(1) + '%' : numVal.toFixed(2);
+          const numVal = parseFloat(String(val).replace('%', '').replace(',', '.'));
+          const displayVal = kpi.isPercent ? numVal.toFixed(1) + '%' : numVal.toFixed(2);
 
-        let isMet = false;
-        if (!isNaN(numVal)) {
-          isMet = kpi.type === 'min' ? numVal >= kpi.target : numVal <= kpi.target;
-        }
+          let isMet = false;
+          if (!isNaN(numVal)) {
+            isMet = kpi.type === 'min' ? numVal >= kpi.target : numVal <= kpi.target;
+          }
 
-        const styleClass = isMet
-          ? 'text-emerald-600 font-bold bg-emerald-50/50 rounded ring-1 ring-emerald-100'
-          : 'text-rose-500 font-medium bg-rose-50/30 rounded';
+          const styleClass = isMet
+            ? 'text-emerald-600 font-bold bg-emerald-50/50 rounded ring-1 ring-emerald-100'
+            : 'text-rose-500 font-medium bg-rose-50/30 rounded';
 
-        return `
+          return `
                               <td class="px-4 py-3 text-center border-l border-dashed border-slate-50">
                                 <span class="${styleClass} px-2 py-1 inline-block min-w-[60px]">
                                     ${displayVal}
                                 </span>
                               </td>
                             `;
-      }).join('')}
+        }).join('')}
                       </tr>
                     `;
     }).join('')}
