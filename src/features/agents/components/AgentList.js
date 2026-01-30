@@ -189,7 +189,7 @@ export class AgentList {
                   </th>
                   ${this.kpiConfig.map(kpi => `
                    <th class="px-2 text-center min-w-[100px] group cursor-pointer hover:bg-slate-100 transition-colors border-b border-r border-gray-300 h-[60px]" data-sort-key="${kpi.key}">
-                      <div class="flex flex-col items-center justify-center h-full">
+                      <div class="flex flex-col items-center justify-center h-full w-full">
                           <div class="flex items-center gap-1">
                              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">${kpi.label}</span>
                              ${this.getSortIcon(kpi.key)}
