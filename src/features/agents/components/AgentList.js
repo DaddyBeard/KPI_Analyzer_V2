@@ -181,24 +181,24 @@ export class AgentList {
             <table class="w-full text-left border-collapse" style="width: 100% !important;">
                <thead class="sticky top-0 z-50 bg-slate-50">
                 <tr class="">
-                  <th class="px-4 py-3 text-left sticky left-0 z-50 bg-slate-50 w-[260px] cursor-pointer group hover:bg-slate-100 transition-colors border-r border-b border-gray-300 align-middle" data-sort-key="agentName">
+                  <th class="px-4 text-left sticky left-0 z-50 bg-slate-50 w-[260px] cursor-pointer group hover:bg-slate-100 transition-colors border-r border-b border-gray-300 h-[60px]" data-sort-key="agentName">
                       <div class="flex items-center gap-2 h-full">
                         <span class="text-[11px] font-black text-slate-600 uppercase tracking-widest pl-1">Agente / Supervisor</span>
                         ${this.getSortIcon('agentName')}
                       </div>
                   </th>
                   ${this.kpiConfig.map(kpi => `
-                   <th class="px-2 py-2 text-center min-w-[100px] group cursor-pointer hover:bg-slate-100 transition-colors border-b border-r border-gray-300 align-middle" data-sort-key="${kpi.key}">
-                      <div class="flex flex-col items-center justify-center gap-0.5 relative h-full">
+                   <th class="px-2 text-center min-w-[100px] group cursor-pointer hover:bg-slate-100 transition-colors border-b border-r border-gray-300 h-[60px]" data-sort-key="${kpi.key}">
+                      <div class="flex flex-col items-center justify-center h-full">
                           <div class="flex items-center gap-1">
                              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">${kpi.label}</span>
                              ${this.getSortIcon(kpi.key)}
                           </div>
-                          <span class="text-[9px] text-slate-400 font-normal">Obj: ${kpi.target}${kpi.isPercent ? '%' : ''}</span>
+                          <span class="text-[9px] text-slate-400 font-normal mt-0.5">Obj: ${kpi.target}${kpi.isPercent ? '%' : ''}</span>
                       </div>
                     </th>
                   `).join('')}
-                  <th class="px-3 py-2 text-right sticky right-0 z-50 bg-slate-50 w-[60px] border-b border-gray-300 align-middle"></th>
+                  <th class="px-3 text-right sticky right-0 z-50 bg-slate-50 w-[60px] border-b border-gray-300 h-[60px]"></th>
                 </tr>
               </thead>
               <tbody class="" id="agentsTableBody">
