@@ -9,6 +9,8 @@ import { AgentList } from '../features/agents/components/AgentList.js';
 // import { ChartComponent } from '../features/dashboard/components/ChartComponent.js';
 import * as d3 from 'd3';
 import { ReportService } from '../features/reports/ReportService.js';
+import { ExcelExportService } from '../features/reports/ExcelExportService.js';
+import { ExportOptionsModal } from '../features/reports/ExportOptionsModal.js';
 import { demoData } from '../data/demo-data.js';
 import { DataNormalizer } from '../features/data-loader/DataNormalizer.js';
 import { FileSelectionModal } from '../features/data-loader/FileSelectionModal.js';
@@ -309,34 +311,49 @@ export class AppShell {
                </div>
             </div>
 
-             <!-- Excel Raw (Disabled State Premium) -->
-             <!-- Excel Raw (Disabled State Corporate) -->
-            <div class="group bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-none relative overflow-hidden opacity-60">
+             <!-- Excel Export (Active Card) -->
+            <div class="group bg-white p-6 rounded-xl border-2 border-green-200 bg-green-50 shadow-sm hover:shadow-md hover:border-green-400 transition-all duration-200 relative overflow-hidden">
                <div class="relative z-10 flex flex-col h-full items-start gap-4">
                    <div class="flex items-center gap-4 w-full">
-                       <div class="p-3 bg-slate-200 text-slate-500 rounded-lg shrink-0">
-                          <i data-lucide="table" class="w-6 h-6"></i>
-                       </div>
+                       <div class="p-3 bg-green-100 text-green-700 rounded-lg shrink-0">
+                          <i data-lucide="file-spreadsheet" class="w-6 h-6"></i>
+                    </div>
                        <div>
-                          <h3 class="text-xl font-bold text-slate-500 tracking-tight">Datos Crudos</h3>
-                          <p class="text-slate-400 text-sm mt-1">Formato Excel nativo</p>
+                          <div class="flex items-center gap-2">
+                            <h3 class="text-xl font-bold text-slate-900 tracking-tight">Exportar a Excel</h3>
+                            <span class="text-xs px-2 py-1 bg-green-600 text-white rounded-full font-semibold">NUEVO</span>
+                          </div>
+                          <p class="text-slate-600 text-sm mt-1">3 formatos disponibles</p>
                        </div>
                    </div>
-                   <div class="mt-auto w-full pt-4">
-                       <button disabled class="px-4 py-2.5 bg-slate-200 text-slate-400 rounded-lg flex items-center gap-2 w-full justify-center text-sm font-semibold cursor-not-allowed">
-                          <i data-lucide="lock" class="w-4 h-4"></i> No disponible
-                       </button>
-                   </div>
+                   
+                   <p class="text-slate-600 text-sm leading-relaxed border-t border-slate-100 pt-3 w-full">
+                     Exporta datos con formato básico, profesional o dashboard completo con análisis ejecutivo.
+                   </p>
+
+                   <button id="btnExportExcel" class="mt-4 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 w-full justify-center text-sm font-semibold shadow-sm">
+                      <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Exportar Excel
+                   </button>
                </div>
             </div>
          </div>
       </div>
     `;
 
+    // Event listener para exportar ranking PDF
     this.mainContent.querySelector('#btnExportRanking').addEventListener('click', () => {
       const data = store.getData();
       if (data.length === 0) return alert('No hay datos cargados para exportar.');
       ReportService.exportGeneralRanking(data);
+    });
+
+    // Event listener para exportar a Excel
+    this.mainContent.querySelector('#btnExportExcel').addEventListener('click', () => {
+      const data = store.getData();
+      if (data.length === 0) return alert('No hay datos cargados para exportar.');
+
+      // Mostrar modal de selección de formato
+      ExportOptionsModal.show(data, kpiContext.getConfig());
     });
   }
 

@@ -18,6 +18,7 @@
     "dependencies": {
         "chart.js": "^4.4.0",
         "d3": "^7.9.0",
+        "exceljs": "^4.4.0",
         "jspdf": "^2.5.1",
         "jspdf-autotable": "^3.8.0",
         "lucide": "^0.300.0",
