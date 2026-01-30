@@ -48,9 +48,18 @@ export const AgentHistory = {
       }
     });
 
-    // 2. Sort Periods (Newest first: roughly by YYYY-MM)
-    const periods = Array.from(uniqueHistoryMap.values())
-      .sort((a, b) => b.period.localeCompare(a.period));
+    // 2. Filter out periods without valid KPIs (e.g., control/user files)
+    const periodsWithKPIs = Array.from(uniqueHistoryMap.values()).filter(record => {
+      const kpis = record.kpis || {};
+      // Check if at least one KPI from config exists and has a valid value
+      return KPI_CONFIG.some(kpi => {
+        const val = kpis[kpi.key];
+        return val !== null && val !== undefined && val !== '';
+      });
+    });
+
+    // 3. Sort Periods (Newest first: roughly by YYYY-MM)
+    const periods = periodsWithKPIs.sort((a, b) => b.period.localeCompare(a.period));
 
     return `
       <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">

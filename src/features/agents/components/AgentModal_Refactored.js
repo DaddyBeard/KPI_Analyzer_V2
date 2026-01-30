@@ -116,7 +116,7 @@ export class AgentModalV4 {
     const initials = agentName.split(' ').map(n => n.charAt(0)).join('').substring(0, 2).toUpperCase();
 
     this.element.innerHTML = `
-      <div class="agent-modal-card bg-white w-full max-w-6xl h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden transition-all duration-500 transform scale-95 opacity-0 border border-slate-200">
+      <div class="agent-modal-card bg-white w-full max-w-7xl h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden transition-all duration-500 transform scale-95 opacity-0 border border-slate-200">
 
         
         <!-- Premium Header Area -->
