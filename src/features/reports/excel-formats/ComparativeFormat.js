@@ -18,9 +18,8 @@ export class ComparativeFormat {
         // Crear hoja de resumen de evolución
         this.createEvolutionSummary(workbook, data, kpiConfig);
 
-        // Crear hoja por cada KPI principal
-        const mainKpis = kpiConfig.slice(0, 5);
-        mainKpis.forEach(kpi => {
+        // Crear hoja por cada KPI (todos los KPIs configurados)
+        kpiConfig.forEach(kpi => {
             this.createKpiTrendSheet(workbook, data, kpi);
         });
 
