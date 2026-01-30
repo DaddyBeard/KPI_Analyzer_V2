@@ -356,7 +356,30 @@ export class DataNormalizer {
             adherence: find(['adherencia al puesto %', 'adherencia']),
             aht: find(['aht', 'tmo']),
             tipif: find(['% tipificacion', 'tipificación']),
-            transfer: find(['transfer rate'], ['transferidas', 'encuesta']),
+            // Transfer: Prioritize "Transfer Rate" over "Transferidas"
+            transfer: (() => {
+                // First try exact match for "Transfer Rate"
+                const exactMatch = keys.find(k => {
+                    const lower = k.toLowerCase().trim();
+                    return lower === 'transfer rate' || lower === 'transferrate';
+                });
+                if (exactMatch) return exactMatch;
+
+                // Then try contains "rate" (to catch variations)
+                const rateMatch = keys.find(k => {
+                    const lower = k.toLowerCase().trim();
+                    return lower.includes('transfer') && lower.includes('rate');
+                });
+                if (rateMatch) return rateMatch;
+
+                // Fallback: find transfer but exclude Transferidas/encuesta
+                return keys.find(k => {
+                    const lower = k.toLowerCase().trim();
+                    return lower.includes('transfer') &&
+                        !lower.includes('transferidas') &&
+                        !lower.includes('encuesta');
+                });
+            })(),
             nps: find(['nps']),
             ncp: find(['ncp']),
             calls: find(['llamadas', 'calls'])
