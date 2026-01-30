@@ -63,9 +63,8 @@ export class TeamManagerFormat {
         // Encabezados
         const headers = ['Team Manager', 'Agentes', 'Promedio Global %'];
 
-        // Agregar KPIs principales
-        const mainKpis = kpiConfig.slice(0, 4);
-        mainKpis.forEach(kpi => {
+        // Agregar TODOS los KPIs
+        kpiConfig.forEach(kpi => {
             headers.push(`Prom. ${kpi.label}`);
         });
 
@@ -91,8 +90,8 @@ export class TeamManagerFormat {
                 globalAvg
             ];
 
-            // Promedios de KPIs principales
-            mainKpis.forEach(kpi => {
+            // Promedios de TODOS los KPIs
+            kpiConfig.forEach(kpi => {
                 const avg = this.calculateKpiAverage(agents, kpi.key);
                 rowData.push(avg !== null ? avg : '-');
             });
@@ -112,7 +111,7 @@ export class TeamManagerFormat {
 
             // Formato de números
             row.getCell(3).numFmt = '0"%"';
-            for (let i = 4; i <= 3 + mainKpis.length; i++) {
+            for (let i = 4; i <= 3 + kpiConfig.length; i++) {
                 row.getCell(i).numFmt = '0.0';
             }
 
@@ -131,7 +130,7 @@ export class TeamManagerFormat {
         worksheet.getColumn(1).width = 20;
         worksheet.getColumn(2).width = 12;
         worksheet.getColumn(3).width = 18;
-        for (let i = 4; i <= 3 + mainKpis.length; i++) {
+        for (let i = 4; i <= 3 + kpiConfig.length; i++) {
             worksheet.getColumn(i).width = 14;
         }
     }
