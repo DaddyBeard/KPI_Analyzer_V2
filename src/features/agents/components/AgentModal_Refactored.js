@@ -261,7 +261,7 @@ export class AgentModalV4 {
 
       // Calculate Stats
       this.priorityKPI = this.selectedKPI || identifyPriorityKPI(this.agentData.kpis || {}, currentConfig);
-      this.summaryDraft = generateSummaryDraft(this.agentData, currentConfig); // Pass full agentData and config
+      this.summaryDraft = generateSummaryDraft(this.agentData, currentConfig, this.selectedKPI); // Pass selected KPI
 
       const textarea = this.element.querySelector('#actionPlanNotes');
       if (textarea) {

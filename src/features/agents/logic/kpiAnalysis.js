@@ -73,20 +73,13 @@ export function identifyTopKPIs(kpiData, kpiConfig, topN = 3) {
 
 /**
  * Generates a draft summary based on the identified priority KPI.
- * @param {string} agentName - Name of the agent.
- * @param {string} month - Current period/month.
- * @param {Object} priorityKPI - The identified priority KPI object (result of identifyPriorityKPI).
- * @returns {string} - The draft text template.
- */
-/**
- * Generates a draft summary based on the identified priority KPI.
  * Refactored to provide a "Professional yet Approachable" coaching style.
- * @param {string} agentName - Name of the agent.
- * @param {string} month - Current period/month.
- * @param {Object} priorityKPI - The identified priority KPI object (result of identifyPriorityKPI).
+ * @param {Object} agentData - Full agent data object
+ * @param {Array} kpiConfig - KPI configuration array
+ * @param {Object} selectedKPI - Optional. User-selected KPI from podium to focus on
  * @returns {string} - The draft text template.
  */
-export function generateSummaryDraft(agentData, kpiConfig) {
+export function generateSummaryDraft(agentData, kpiConfig, selectedKPI = null) {
     const kpis = agentData.kpis || {};
     const agentName = agentData.agent ? agentData.agent.split(' ')[0] : 'Colaborador'; // First name
 
@@ -148,10 +141,10 @@ export function generateSummaryDraft(agentData, kpiConfig) {
     if (successRate >= 0.8) category = 'high_performance';
     else if (successRate < 0.5) category = 'low_performance';
 
-    // 4. Identify Priority KPI (Main Challenge)
-    const priorityKPI = identifyPriorityKPI(kpis, kpiConfig);
+    // 4. Identify Priority KPI (Main Challenge) - Use selected KPI if provided
+    const priorityKPI = selectedKPI || identifyPriorityKPI(kpis, kpiConfig);
     const mainChallenge = priorityKPI
-        ? `${priorityKPI.label} (${priorityKPI.actual}${priorityKPI.unit || ''})`
+        ? `${priorityKPI.label} (${priorityKPI.actual}${priorityKPI.isPercent ? '%' : ''})`
         : 'Mantener la consistencia';
 
     // 5. Narrative Building Blocks
