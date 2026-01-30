@@ -18,7 +18,7 @@ export class ExportOptionsModal {
 
     // Crear modal
     overlay.innerHTML = `
-      <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 animate-fade-in">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 animate-fade-in max-h-[90vh] flex flex-col">
         <!-- Header -->
         <div class="bg-gradient-to-r from-indigo-600 to-blue-600 p-6 rounded-t-2xl">
           <div class="flex items-center justify-between">
@@ -38,7 +38,7 @@ export class ExportOptionsModal {
         </div>
 
         <!-- Body -->
-        <div class="p-6 space-y-4">
+        <div class="p-6 space-y-4 overflow-y-auto flex-1">
           
           <!-- Formato 1: Básico -->
           <button data-format="basic" class="export-format-option w-full text-left p-5 rounded-xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 transition-all group">
