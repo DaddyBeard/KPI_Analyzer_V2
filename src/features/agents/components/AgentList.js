@@ -190,9 +190,11 @@ export class AgentList {
                   ${this.kpiConfig.map(kpi => `
                    <th class="px-2 text-center min-w-[100px] group cursor-pointer hover:bg-slate-100 transition-colors border-b border-r border-gray-300 h-[60px]" data-sort-key="${kpi.key}">
                       <div class="flex flex-col items-center justify-center h-full w-full">
-                          <div class="flex items-center gap-1">
+                          <div class="relative flex items-center justify-center">
                              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">${kpi.label}</span>
-                             ${this.getSortIcon(kpi.key)}
+                             <div class="absolute left-full ml-1 top-1/2 -translate-y-1/2">
+                                ${this.getSortIcon(kpi.key)}
+                             </div>
                           </div>
                           <span class="text-[9px] text-slate-400 font-normal mt-0.5">Obj: ${kpi.target}${kpi.isPercent ? '%' : ''}</span>
                       </div>
