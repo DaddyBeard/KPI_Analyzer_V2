@@ -68,6 +68,17 @@ export const KPIMetrics = {
         const displayVal = kpi.isPercent ? numVal.toFixed(decimals) + '%' : numVal.toFixed(decimals);
         const cleanTarget = kpi.target + (kpi.isPercent ? '%' : '');
 
+        // Get secondary value if exists (e.g., gestTotal for gestH)
+        let secondaryDisplay = '';
+        if (kpi.secondaryKey && allKpis[kpi.secondaryKey]) {
+            const secVal = allKpis[kpi.secondaryKey];
+            const secNum = parseFloat(String(secVal).replace('%', '').replace(',', '.'));
+            if (!isNaN(secNum)) {
+                const secLabel = kpi.secondaryLabel || 'Total';
+                secondaryDisplay = `<span class="text-xs text-slate-500 font-medium">${secLabel}: ${secNum.toFixed(0)}</span>`;
+            }
+        }
+
         let percent = 0;
         if (kpi.target) {
             if (kpi.type === 'min') {
@@ -97,6 +108,7 @@ export const KPIMetrics = {
             <div class="flex items-baseline gap-2">
                 <h4 class="text-2xl font-black text-slate-800 tracking-tight leading-none">${displayVal}</h4>
             </div>
+            ${secondaryDisplay ? `<div class="mt-0.5">${secondaryDisplay}</div>` : ''}
          </div>
 
          <!-- Progress Bar Context -->
