@@ -360,8 +360,14 @@ export class AgentList {
       let content = '<span class="text-slate-200 text-[10px]">-</span>';
 
       if (val !== null && val !== undefined) {
-        const displayVal = kpi.isPercent ? (val * 1).toFixed(0) + '%' : (val * 1).toFixed(2);
-        const style = this.getBadgeStyle(kpi, val);
+        let numVal = parseFloat(val);
+        // Apply maxValue cap if defined
+        if (kpi.maxValue !== undefined && numVal > kpi.maxValue) {
+          numVal = kpi.maxValue;
+        }
+        const decimals = kpi.decimals !== undefined ? kpi.decimals : (kpi.isPercent ? 0 : 2);
+        const displayVal = kpi.isPercent ? numVal.toFixed(decimals) + '%' : numVal.toFixed(decimals);
+        const style = this.getBadgeStyle(kpi, numVal);
 
         content = `
             <div class="flex justify-center">

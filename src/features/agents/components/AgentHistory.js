@@ -138,7 +138,8 @@ export const AgentHistory = {
             ? 'text-emerald-600 bg-emerald-50/50 ring-1 ring-emerald-100'
             : (diff === 0 ? 'text-slate-500 bg-slate-50' : 'text-rose-500 bg-rose-50/50 ring-1 ring-rose-100');
 
-          const displayDiff = kpi.isPercent ? diff.toFixed(1) + '%' : diff.toFixed(2);
+          const decimals = kpi.decimals !== undefined ? kpi.decimals : (kpi.isPercent ? 1 : 2);
+          const displayDiff = kpi.isPercent ? diff.toFixed(decimals) + '%' : diff.toFixed(decimals);
 
           return `
                           <td class="px-4 py-3 text-center bg-indigo-50/20 border-r border-slate-200">
@@ -160,8 +161,13 @@ export const AgentHistory = {
             return '<td class="px-4 py-3 text-center text-slate-300 border-r border-slate-200">-</td>';
           }
 
-          const numVal = parseFloat(String(val).replace('%', '').replace(',', '.'));
-          const displayVal = kpi.isPercent ? numVal.toFixed(1) + '%' : numVal.toFixed(2);
+          let numVal = parseFloat(String(val).replace('%', '').replace(',', '.'));
+          // Apply maxValue cap if defined
+          if (kpi.maxValue !== undefined && numVal > kpi.maxValue) {
+            numVal = kpi.maxValue;
+          }
+          const decimals = kpi.decimals !== undefined ? kpi.decimals : (kpi.isPercent ? 1 : 2);
+          const displayVal = kpi.isPercent ? numVal.toFixed(decimals) + '%' : numVal.toFixed(decimals);
 
           let isMet = false;
           if (!isNaN(numVal)) {

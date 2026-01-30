@@ -64,7 +64,8 @@ export const KPIMetrics = {
             icon = 'x-circle';
         }
 
-        const displayVal = kpi.isPercent ? numVal.toFixed(1) + '%' : numVal.toFixed(2);
+        const decimals = kpi.decimals !== undefined ? kpi.decimals : (kpi.isPercent ? 1 : 2);
+        const displayVal = kpi.isPercent ? numVal.toFixed(decimals) + '%' : numVal.toFixed(decimals);
         const cleanTarget = kpi.target + (kpi.isPercent ? '%' : '');
 
         let percent = 0;

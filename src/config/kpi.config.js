@@ -4,6 +4,7 @@ export const KPI_CONFIG = [
         label: 'GEST/H',
         type: 'min',
         target: 2.5,
+        decimals: 2,
         icon: 'zap',
         description: 'Expedientes gestionados por hora',
         secondaryKey: 'gestTotal',
@@ -14,6 +15,7 @@ export const KPI_CONFIG = [
         label: 'CERR/H',
         type: 'min',
         target: 1.8,
+        decimals: 2,
         icon: 'check-circle',
         description: 'Expedientes cerrados por hora',
         secondaryKey: 'cerrTotal',
@@ -25,6 +27,7 @@ export const KPI_CONFIG = [
         type: 'min',
         target: 85,
         isPercent: true,
+        decimals: 0,
         icon: 'shield-check',
         description: 'Nivel calidad objetiva BackOffice'
     },
@@ -33,6 +36,7 @@ export const KPI_CONFIG = [
         label: 'AHT',
         type: 'max',
         target: 340,
+        decimals: 0,
         icon: 'clock',
         description: 'Tiempo medio de operación (segundos)',
         secondaryKey: 'calls',
@@ -44,6 +48,7 @@ export const KPI_CONFIG = [
         type: 'min',
         target: 90,
         isPercent: true,
+        decimals: 0,
         icon: 'list',
         description: 'Porcentaje de tipificación correcta'
     },
@@ -53,6 +58,8 @@ export const KPI_CONFIG = [
         type: 'max',
         target: 15,
         isPercent: true,
+        decimals: 0,
+        maxValue: 100,
         icon: 'arrow-right-circle',
         description: 'Porcentaje de transferencias'
     },
@@ -61,6 +68,7 @@ export const KPI_CONFIG = [
         label: 'NPS',
         type: 'min',
         target: 30,
+        decimals: 0,
         icon: 'smile',
         description: 'Net Promoter Score'
     },
@@ -69,6 +77,7 @@ export const KPI_CONFIG = [
         label: 'NCP',
         type: 'min',
         target: 9,
+        decimals: 0,
         icon: 'alert-triangle',
         description: 'No Conformidad de Proceso'
     },
@@ -78,6 +87,7 @@ export const KPI_CONFIG = [
         type: 'min',
         target: 85,
         isPercent: true,
+        decimals: 0,
         icon: 'phone',
         description: 'Nivel calidad objetiva Llamadas',
         secondaryKey: 'calls',
