@@ -103,17 +103,19 @@ export class ProfessionalFormat {
      */
     static addDataRows(worksheet, data, kpiConfig) {
         data.forEach((agent, index) => {
+            // Obtener datos del agente
+            // Estructura del Store: { id, agent, supervisor, kpis: {...}, admin: {...} }
             const rowData = [
-                agent.ID_empl || agent.id_empl || agent.id,
-                agent.Nombre || agent.nombre || agent.agent,
-                agent.TM || agent.supervisor
+                agent.id || '-',
+                agent.agent || '-',
+                agent.supervisor || '-'
             ];
 
-            // Agregar valores de KPIs
+            // Agregar valores de KPIs desde agent.kpis
             const kpiValues = [];
             kpiConfig.forEach(kpi => {
-                const value = this.getKpiValue(agent, kpi.key);
-                kpiValues.push(value);
+                const value = agent.kpis ? agent.kpis[kpi.key] : null;
+                kpiValues.push(value !== null && value !== undefined ? value : '-');
             });
 
             const row = worksheet.addRow([...rowData, ...kpiValues]);
@@ -146,42 +148,15 @@ export class ProfessionalFormat {
     }
 
     /**
-     * Obtiene el valor de un KPI del objeto agente
-     */
-    static getKpiValue(agent, key) {
-        // Mapeo de posibles nombres de campos
-        const fieldMap = {
-            'gestH': ['Gest/H', 'gestH'],
-            'cerrH': ['Cerr/H', 'cerrH'],
-            'ncoBO': ['NCO BO', 'ncoBO'],
-            'aht': ['AHT', 'aht'],
-            'tipif': ['Tipificación', 'tipif'],
-            'transfer': ['Transfer', 'transfer'],
-            'nps': ['NPS', 'nps'],
-            'ncp': ['NCP', 'ncp'],
-            'ncoCall': ['NCO Llam', 'ncoCall']
-        };
-
-        const possibleFields = fieldMap[key] || [key];
-        for (const field of possibleFields) {
-            if (agent[field] !== undefined && agent[field] !== null) {
-                return agent[field];
-            }
-        }
-
-        return '-';
-    }
-
-    /**
      * Aplica formato condicional según cumplimiento de KPIs
      * Skill: Verde para cumplimiento, Rojo para incumplimiento
      */
     static applyConditionalFormatting(row, agent, kpiConfig, startColumn) {
         kpiConfig.forEach((kpi, index) => {
             const cell = row.getCell(startColumn + index + 1);
-            const value = this.getKpiValue(agent, kpi.key);
+            const value = agent.kpis ? agent.kpis[kpi.key] : null;
 
-            if (value === '-' || value === null || value === undefined) {
+            if (value === null || value === undefined || value === '-') {
                 cell.fill = {
                     type: 'pattern',
                     pattern: 'solid',

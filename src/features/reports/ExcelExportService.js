@@ -105,7 +105,8 @@ export class ExcelExportService {
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('Ficha del Agente');
 
-            const agentName = agentData.Nombre || agentData.nombre || agentData.agent;
+            // Estructura del Store: { id, agent, supervisor, kpis: {...}, admin: {...} }
+            const agentName = agentData.agent || 'Agente';
 
             // Título
             const titleRow = worksheet.addRow([`FICHA DE AGENTE: ${agentName}`]);
@@ -116,8 +117,8 @@ export class ExcelExportService {
             worksheet.addRow([]);
 
             // Información general
-            worksheet.addRow(['ID Empleado:', agentData.ID_empl || agentData.id_empl]);
-            worksheet.addRow(['Team Manager:', agentData.TM || agentData.supervisor]);
+            worksheet.addRow(['ID Empleado:', agentData.id || '-']);
+            worksheet.addRow(['Team Manager:', agentData.supervisor || '-']);
             worksheet.addRow([]);
 
             // KPIs
@@ -132,11 +133,11 @@ export class ExcelExportService {
             });
 
             kpiConfig.forEach(kpi => {
-                const value = this.getKpiValue(agentData, kpi.key);
+                const value = agentData.kpis ? agentData.kpis[kpi.key] : null;
                 const meetsTarget = this.checkTarget(value, kpi.target, kpi.type);
-                const status = meetsTarget ? '✓ Cumple' : '✗ No cumple';
+                const status = meetsTarget ? 'CUMPLE' : 'NO CUMPLE';
 
-                const row = worksheet.addRow([kpi.label, value, kpi.target, status]);
+                const row = worksheet.addRow([kpi.label, value !== null && value !== undefined ? value : '-', kpi.target, status]);
 
                 row.getCell(4).fill = {
                     type: 'pattern',
@@ -196,35 +197,10 @@ export class ExcelExportService {
     }
 
     /**
-     * Obtiene el valor de un KPI del objeto agente
-     */
-    static getKpiValue(agent, key) {
-        const fieldMap = {
-            'gestH': ['Gest/H', 'gestH'],
-            'cerrH': ['Cerr/H', 'cerrH'],
-            'ncoBO': ['NCO BO', 'ncoBO'],
-            'aht': ['AHT', 'aht'],
-            'tipif': ['Tipificación', 'tipif'],
-            'transfer': ['Transfer', 'transfer'],
-            'nps': ['NPS', 'nps'],
-            'ncp': ['NCP', 'ncp'],
-            'ncoCall': ['NCO Llam', 'ncoCall']
-        };
-
-        const possibleFields = fieldMap[key] || [key];
-        for (const field of possibleFields) {
-            if (agent[field] !== undefined && agent[field] !== null) {
-                return agent[field];
-            }
-        }
-        return '-';
-    }
-
-    /**
      * Verifica si cumple target
      */
     static checkTarget(value, target, type) {
-        if (value === '-' || isNaN(parseFloat(value))) return false;
+        if (value === null || value === undefined || value === '-' || isNaN(parseFloat(value))) return false;
         const numValue = parseFloat(value);
         if (type === 'min') return numValue >= target;
         if (type === 'max') return numValue <= target;

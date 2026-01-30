@@ -58,15 +58,17 @@ export class DashboardFormat {
         });
 
         // Datos
+        // Estructura del Store: { id, agent, supervisor, kpis: {...}, admin: {...} }
         data.forEach(agent => {
             const rowData = [
-                agent.ID_empl || agent.id_empl,
-                agent.Nombre || agent.nombre,
-                agent.TM || agent.supervisor
+                agent.id || '-',
+                agent.agent || '-',
+                agent.supervisor || '-'
             ];
 
             kpiConfig.forEach(kpi => {
-                rowData.push(this.getKpiValue(agent, kpi.key));
+                const value = agent.kpis ? agent.kpis[kpi.key] : null;
+                rowData.push(value !== null && value !== undefined ? value : '-');
             });
 
             worksheet.addRow(rowData);
@@ -122,7 +124,7 @@ export class DashboardFormat {
 
         // Fórmulas por cada KPI
         kpiConfig.forEach((kpi, index) => {
-            const colLetter = this.getColumnLetter(3 + index); // Columna del KPI en hoja Datos
+            const colLetter = this.getColumnLetter(4 + index); // Columna del KPI en hoja Datos (D, E, F...)
             const dataRange = `Datos!${colLetter}2:${colLetter}${totalAgents + 1}`;
 
             const row = worksheet.addRow([
@@ -179,19 +181,20 @@ export class DashboardFormat {
         const worksheet = workbook.addWorksheet('Top Performers');
 
         // Título
-        const titleRow = worksheet.addRow(['🏆 TOP 10 AGENTES']);
+        const titleRow = worksheet.addRow(['TOP 10 AGENTES']);
         titleRow.getCell(1).font = { size: 14, bold: true, color: { argb: 'FF15803D' } };
         worksheet.mergeCells('A1:D1');
         worksheet.addRow([]);
 
         // Calcular puntuación global por agente
+        // Estructura del Store: { id, agent, supervisor, kpis: {...} }
         const agentsWithScore = data.map(agent => {
             let score = 0;
             let validKpis = 0;
 
             kpiConfig.forEach(kpi => {
-                const value = this.getKpiValue(agent, kpi.key);
-                if (value !== '-' && !isNaN(parseFloat(value))) {
+                const value = agent.kpis ? agent.kpis[kpi.key] : null;
+                if (value !== null && value !== undefined && value !== '-' && !isNaN(parseFloat(value))) {
                     const compliance = this.calculateCompliance(parseFloat(value), kpi.target, kpi.type);
                     score += compliance;
                     validKpis++;
@@ -200,7 +203,7 @@ export class DashboardFormat {
 
             return {
                 ...agent,
-                globalScore: validKpis > 0 ? (score / validKpis) * 100 : 0
+                globalScore: validKpis > 0 ? (score / validKpis) : 0
             };
         });
 
@@ -225,12 +228,12 @@ export class DashboardFormat {
         topPerformers.forEach((agent, index) => {
             const row = worksheet.addRow([
                 index + 1,
-                agent.Nombre || agent.nombre,
-                agent.TM || agent.supervisor,
+                agent.agent || '-',
+                agent.supervisor || '-',
                 Math.round(agent.globalScore)
             ]);
 
-            // Destacar top 3 con medallas
+            // Destacar top 3 con colores
             if (index < 3) {
                 row.getCell(1).font = { size: 12, bold: true };
                 row.eachCell(cell => {
@@ -259,7 +262,7 @@ export class DashboardFormat {
         const worksheet = workbook.addWorksheet('Alertas');
 
         // Título
-        const titleRow = worksheet.addRow(['⚠️ ALERTAS - KPIS CRÍTICOS']);
+        const titleRow = worksheet.addRow(['ALERTAS - KPIS CRITICOS']);
         titleRow.getCell(1).font = { size: 14, bold: true, color: { argb: 'FFDC2626' } };
         worksheet.mergeCells('A1:E1');
         worksheet.addRow([]);
@@ -277,16 +280,17 @@ export class DashboardFormat {
         });
 
         // Buscar alertas
+        // Estructura del Store: { id, agent, supervisor, kpis: {...} }
         const alerts = [];
         data.forEach(agent => {
             kpiConfig.forEach(kpi => {
-                const value = this.getKpiValue(agent, kpi.key);
-                if (value !== '-' && !isNaN(parseFloat(value))) {
+                const value = agent.kpis ? agent.kpis[kpi.key] : null;
+                if (value !== null && value !== undefined && value !== '-' && !isNaN(parseFloat(value))) {
                     const meetsTarget = this.checkTargetCompliance(parseFloat(value), kpi.target, kpi.type);
                     if (!meetsTarget) {
                         alerts.push({
-                            nombre: agent.Nombre || agent.nombre,
-                            tm: agent.TM || agent.supervisor,
+                            nombre: agent.agent || '-',
+                            tm: agent.supervisor || '-',
                             kpi: kpi.label,
                             valor: value,
                             target: kpi.target
@@ -316,7 +320,7 @@ export class DashboardFormat {
         });
 
         if (alerts.length === 0) {
-            worksheet.addRow(['✅ No hay alertas críticas']);
+            worksheet.addRow(['No hay alertas críticas']);
         }
 
         // Ajuste de columnas
@@ -328,28 +332,6 @@ export class DashboardFormat {
     }
 
     // ===== HELPERS =====
-
-    static getKpiValue(agent, key) {
-        const fieldMap = {
-            'gestH': ['Gest/H', 'gestH'],
-            'cerrH': ['Cerr/H', 'cerrH'],
-            'ncoBO': ['NCO BO', 'ncoBO'],
-            'aht': ['AHT', 'aht'],
-            'tipif': ['Tipificación', 'tipif'],
-            'transfer': ['Transfer', 'transfer'],
-            'nps': ['NPS', 'nps'],
-            'ncp': ['NCP', 'ncp'],
-            'ncoCall': ['NCO Llam', 'ncoCall']
-        };
-
-        const possibleFields = fieldMap[key] || [key];
-        for (const field of possibleFields) {
-            if (agent[field] !== undefined && agent[field] !== null) {
-                return agent[field];
-            }
-        }
-        return '-';
-    }
 
     static checkTargetCompliance(value, target, type) {
         if (type === 'min') return value >= target;

@@ -16,21 +16,28 @@ export class BasicFormat {
         const worksheet = workbook.addWorksheet('Datos KPI');
 
         // Preparar datos simplificados
-        const simpleData = data.map(agent => ({
-            'ID Empleado': agent.ID_empl || agent.id_empl || agent.id,
-            'Nombre': agent.Nombre || agent.nombre || agent.agent,
-            'Team Manager': agent.TM || agent.supervisor,
-            'Adherencia %': this.formatPercent(agent['Adherencia al puesto %'] || agent.adherence),
-            'NCO BO %': agent['NCO BO'] || agent.ncoBO,
-            'NCO Llamadas %': agent['NCO Llam'] || agent.ncoCall,
-            'AHT (seg)': agent.AHT || agent.aht,
-            'Gest/Hora': agent['Gest/H'] || agent.gestH,
-            'Cerr/Hora': agent['Cerr/H'] || agent.cerrH,
-            'Tipificación %': this.formatPercent(agent['Tipificación'] || agent.tipif),
-            'Transfer %': this.formatPercent(agent.Transfer || agent.transfer),
-            'NPS': agent.NPS || agent.nps,
-            'NCP': agent.NCP || agent.ncp
-        }));
+        // Estructura del Store: { id, agent, supervisor, kpis: { gestH, cerrH, ncoBO, ... }, admin: {...} }
+        const simpleData = data.map(agent => {
+            const kpis = agent.kpis || {};
+            return {
+                'ID Empleado': agent.id || '-',
+                'Nombre': agent.agent || '-',
+                'Team Manager': agent.supervisor || '-',
+                'Adherencia %': this.formatValue(kpis.adherence),
+                'NCO BO %': this.formatValue(kpis.ncoBO),
+                'NCO Llamadas %': this.formatValue(kpis.ncoCall),
+                'AHT (seg)': this.formatValue(kpis.aht),
+                'Gest/Hora': this.formatValue(kpis.gestH),
+                'Cerr/Hora': this.formatValue(kpis.cerrH),
+                'Tipificación %': this.formatValue(kpis.tipif),
+                'Transfer %': this.formatValue(kpis.transfer),
+                'NPS': this.formatValue(kpis.nps),
+                'NCP': this.formatValue(kpis.ncp),
+                'Gestiones Total': this.formatValue(kpis.gestTotal),
+                'Cierres Total': this.formatValue(kpis.cerrTotal),
+                'Llamadas': this.formatValue(kpis.calls)
+            };
+        });
 
         // Agregar encabezados y datos
         if (simpleData.length > 0) {
@@ -62,14 +69,10 @@ export class BasicFormat {
     }
 
     /**
-     * Formatea valores de porcentaje
+     * Formatea valores, convierte null/undefined a '-'
      */
-    static formatPercent(value) {
-        if (value === null || value === undefined || value === '-') return '-';
-        if (typeof value === 'number') {
-            if (value <= 1) return Math.round(value * 100);
-            return Math.round(value);
-        }
+    static formatValue(value) {
+        if (value === null || value === undefined || value === '') return '-';
         return value;
     }
 }
